@@ -1,0 +1,15 @@
+{
+  "name": "sh-rm_safe",
+  "version": "0.0.1",
+  "description": "Trash-like, non-destructive /bin/rm wrapper",
+  "scripts": [
+    "bin/path_device",
+    "bin/rm_rotate",
+    "bin/rm_safe"
+  ],
+  "install": "make install",
+  "dependencies": {
+    "landonb/sh-colorlib": "master"
+  }
+}
+
