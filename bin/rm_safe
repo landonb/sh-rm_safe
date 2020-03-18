@@ -40,7 +40,7 @@ source_deps () {
 
   . "$(dirname -- "${BASH_SOURCE[0]}")/path_device"
 
-  ${depsnok}
+  ! ${depsnok}
 }
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
