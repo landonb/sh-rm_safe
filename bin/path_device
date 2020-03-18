@@ -5,33 +5,39 @@
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
 
-device_on_which_file_resides () {
+_sh_rm_safe_device_on_which_file_resides () {
+  local file="$1"
   local owning_device=""
-  if [[ -d "$1" || -f "$1" ]]; then
-    owning_device=$(/bin/df -T "$1" | awk 'NR == 2 {print $1}')
-  elif [[ -h "$1" ]]; then
+  if [ -d "${file}" ] || [ -f "${file}" ]; then
+    owning_device=$(/bin/df -T -- "${file}" | awk 'NR == 2 {print $1}')
+  elif [ -h "${file}" ]; then
     # A symbolic link, so don't use the linked-to file's location, and don't
     # die if the link is dangling (df says "No such file or directory").
-    owning_device=$(/bin/df -T $(dirname -- "$1") | awk 'NR == 2 {print $1}')
+    owning_device="$(/bin/df -T -- "$(dirname -- "${file}")" | awk 'NR == 2 {print $1}')"
   else
     owning_device=""
     # 2017-06-03: For some reason, the caller checking $? for nonzero
     # is not working, so echo empty string instead.
-    #echo "ERROR: Not a directory, regular file, or symbolic link: $1."
+    #  echo "ERROR: Not a directory, regular file, or symbolic link: $1."
     echo ""
     return 1
   fi
-  if [[ $owning_device == "" ]]; then
-    echo "WARNING: \`df\` returned empty string but file exists?: $1"
+  if [ "${owning_device}" == "" ]; then
+    echo "WARNING: ‘df’ returned empty string but file exists?: ${file}"
   fi
-  echo $owning_device
+  echo "${owning_device}"
+}
+
+path_device () {
+  _sh_rm_safe_device_on_which_file_resides "$@"
 }
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
 
 if [ "${BASH_SOURCE[0]}" = "$0" ]; then
-  device_on_which_file_resides "${@}"
+  _sh_rm_safe_device_on_which_file_resides "${@}"
 else
-  export -f device_on_which_file_resides
+  export -f _sh_rm_safe_device_on_which_file_resides
+  export -f path_device
 fi
 

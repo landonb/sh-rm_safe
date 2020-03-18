@@ -3,13 +3,13 @@
 # Project: https://github.com/landonb/sh-rm_safe#🗑
 # License: MIT
 
-DUBS_USE_TRASH_DIR="${DUB_TRASHHOME:-${HOME}}"
+RM_SAFE_TRASH_HOME="${RM_SAFE_TRASH_HOME:-${HOME}}"
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
 
 echo_boxy=false
 
-# 2016-04-26: I added empty_trashes because, while trashes were being
+# 2016-04-26: I added rm_rotate because, while trashes were being
 # created on different devices from rm_safe, rmtrash was only emptying
 # the trash in the user's home.
 #   Also: I find myself feeling more comfortable moving .trash to .trash-TBD
@@ -21,9 +21,8 @@ echo_boxy=false
 #   or whatever, and you won't have to worry about accidentally deleting
 #   things.
 #   MAYBE: You could do an anacron check on the timestamp of the .trash-TBD
-#          and call empty_trashes after a certain amount of time has elapsed.
-empty_trashes () {
-  # locate .trash | grep "\/\.trash$"
+#          and call rm_rotate after a certain amount of time has elapsed.
+rm_rotate () {
   local device_path=''
   for device_path in $( \
     mount \
@@ -34,24 +33,23 @@ empty_trashes () {
       | awk '{print $3}' \
   ); do
     local trash_path=''
-    if [[ "${device_path}" == "/" ]]; then
-      trash_path="${DUBS_USE_TRASH_DIR}/.trash"
+    if [ "${device_path}" = "/" ]; then
+      trash_path="${RM_SAFE_TRASH_HOME}/.trash"
     else
       trash_path="${device_path}/.trash"
     fi
     YES_OR_NO="N"
-    if [[ -d "${trash_path}" ]]; then
-      # FIXME/MAYBE/LATER: Disable asking if you find this code solid enough.
+    if [ -d "${trash_path}" ]; then
       local yes_or_no=""
       echo -n "Empty all items from trash at ‘${trash_path}’? [y/n] "
       read -e yes_or_no
-      if [[ ${yes_or_no^^} == "Y" ]]; then
-        if [[ -d "${trash_path}-TBD" ]]; then
+      if [ "${yes_or_no^^}" = "Y" ]; then
+        if [ -d "${trash_path}-TBD" ]; then
           /bin/rm -rf -- "${trash_path}-TBD"
         fi
-        /bin/mv "${trash_path}" "${trash_path}-TBD"
-        touch "${trash_path}-TBD"
-        mkdir "${trash_path}"
+        /bin/mv -- "${trash_path}" "${trash_path}-TBD"
+        touch -- "${trash_path}-TBD"
+        mkdir -- "${trash_path}"
       else
         echo "Skip! User said not to empty ‘${trash_path}’"
       fi
@@ -64,8 +62,8 @@ empty_trashes () {
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
 
 if [ "${BASH_SOURCE[0]}" = "$0" ]; then
-  empty_trashes "${@}"
+  rm_rotate "${@}"
 else
-  export -f empty_trashes
+  export -f rm_rotate
 fi
 

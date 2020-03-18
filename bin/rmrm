@@ -7,6 +7,9 @@
 
 # Very. Destructive. Remove.
 
+# 2019-04-08: Note: Sometimes you'll want to run `rmrm -- *`,
+#   i.e., if any filenames begin with dashes.
+
 # 2019-04-08: This used to be a simple alias:
 #
 #   alias rmrm='/bin/rm -rf'
@@ -15,12 +18,22 @@
 # reachable via up-arrow (because sometimes I alt-tab to
 # the wrong terminal window, and then I up-arrow-and-enter
 # without thinking!).
+# - So now I fiddle with Bash history to store *commented*
+#   command, so you cannot accidentally re-execute it!
 
-# 2019-04-08: Note: Sometimes you should run `rmrm -- *`,
-#   i.e., if any filenames begin with dashes.
+# 2020-03-14: Moving to own repo, figure I might as well
+# check not trying to delete root filesystem or similar.
 
-function rmrm () {
-  /bin/rm -rf "$@"
+rmrm () {
+  local path
+  for path in "$@"; do
+    if [ "/" = "${path}" ] || [ "." = "${path}" ] || [ ".." = "${path}" ]; then
+      >&2 echo "Refuse to delete: ‘{path}’"
+      return 1
+    fi
+  done
+
+  /bin/rm -rf -- "$@"
 
   # Disable (by commenting) the `rmrm` command in the terminal's history.
   #
