@@ -1,0 +1,243 @@
+#!/bin/bash
+# vim:tw=0:ts=2:sw=2:et:norl:ft=sh
+# Project: https://github.com/landonb/sh-rm_safe#🗑
+# License: MIT
+
+DUBS_USE_TRASH_DIR="${DUB_TRASHHOME:-${HOME}}"
+
+# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
+
+device_filepath_for_file () {
+  local device_path=''
+  # NOTE: We could use awk to get the second line of output, e.g.,
+  #   local usage_report=$(/bin/df -T "$1")
+  #   device_path=$(echo "$usage_report" | awk 'NR == 2 {for(i=7;i<=NF;++i) print $i}')
+  # but it seems easier to me (lb) -- or at least more intuitive -- to use tail-tr-cut.
+  local usage_report=$(/bin/df -T "$1" | tail -1)
+  if [[ $? -eq 0 ]]; then
+    device_path=$(echo "$usage_report" | tr -s ' ' | cut -d ' ' -f7)
+    # >&2 echo "usage_report: ${usage_report}"
+    # >&2 echo "device_path: ${device_path}"
+  else
+    if [[ ! -L "$1" ]]; then
+      # df didn't find file, and file not a symlink.
+      echo "WARNING: Using relative path because not a file: $1"
+    # else, df didn't find symlink because it points at non existant file.
+    fi
+    device_path=$(/bin/df -T $(dirname -- "$1") | awk 'NR == 2 {for(i=7;i<=NF;++i) print $i}')
+  fi
+  echo "${device_path}"
+}
+
+# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
+
+ensure_trashdir () {
+  local device_trashdir="$1"
+  local trash_device="$2"
+  local ensured=1
+  if [[ -z "${device_trashdir}" ]]; then
+    >&2 echo "rm_safe: there is no \$device_trashdir specified"
+    ensured=1  # So caller does nothing more.
+    return ${ensured}
+  fi
+  if [[ -f "${device_trashdir}/.trash" ]]; then
+    ensured=2  # So caller invokes `rm -i`.
+    # MAYBE: Suppress this message, or at least don't show multiple times for
+    #        same ${trash_device}, i.e., on `rm *.*` would echo for every file.
+    >&2 echo "The trash is disabled on device ‘${trash_device}’"
+  else
+    if [[ ! -e "${device_trashdir}/.trash" ]]; then
+      >&2 echo -e "No root trash found for device ‘$(fg_lavender)${trash_device}$(attr_reset)’"
+      sudo_prefix=""
+      if [[ "${device_trashdir}" == "/" ]]; then
+        # The file being deleted lives on the root device but the default
+        # trash directory is not on the same device. This could mean the
+        # user has an encrypted home directory. Rather than moving files
+        # to the encryted space, use an unencrypted trash location, but
+        # make the user do it.
+        >&2 echo
+        >&2 echo "No root trash directory ‘/.trash’ found on root device ‘/’"
+        >&2 echo
+        >&2 echo "- Possibly because your home is encrypted, good job!"
+        >&2 echo
+        sudo_prefix="sudo"
+        device_trashdir=''
+      fi
+      if $echo_boxy; then
+        #    "┌──────────────────────"                "─────────────┐"
+        echo "┌──────────────────────${device_trashdir//?/─}─────────────┐"
+        echo "│ Create new trash at ‘${device_trashdir}/.trash’ ?   │"
+        #echo -n "Please answer [y/N]: "
+        echo -n "│ Create trash? [y/N]:              ${device_trashdir//?/ }│"
+        echo -n -e "\r"
+        echo -n "│ Create trash? [y/N]: "
+      else
+        >&2 echo -e "- HINT: You can skip ask with: \`$(fg_lavender)touch ${device_trashdir}/.trash$(attr_reset)\`"
+        echo -n -e "rm_safe: create a new trash at ‘$(fg_lavender)${device_trashdir}/.trash$(attr_reset)’? [y/N] "
+      fi
+      read the_choice
+      if [[ ${the_choice} != "y" && ${the_choice} != "Y" ]]; then
+        ensured=3  # So caller asks to move to home-trash; or invokes `rm -i`.
+        if $echo_boxy; then
+          #>&2 echo "│ HINT: Avoid ask using touchfile:${device_trashdir//?/ }│"
+          >&2 echo "│ HINT: You can disable this ask:   ${device_trashdir//?/ }│"
+          >&2 echo "│          touch ${device_trashdir}/.trash            │"
+          #>&2 echo "┏━━┛"
+          >&2 echo "└──────────────────────${device_trashdir//?/─}─────────────┘"
+          #>&2 echo "├──────────────────────${device_trashdir//?/─}─────────────┤"
+        else
+          : #>&2 echo "(Set a touchfile to disable this ask: \`touch ${device_trashdir}/.trash\`)"
+        fi
+      else
+        # We'll set ensured=4 in the [[ -d ]], last.
+        ${sudo_prefix} /bin/mkdir -p "${device_trashdir}/.trash"
+        if [[ -n ${sudo_prefix} ]]; then
+          sudo chgrp staff /.trash
+          sudo chmod 2775 /.trash
+        fi
+      fi
+    fi
+    if [[ -d "${device_trashdir}/.trash" ]]; then
+      ensured=4
+    fi
+  fi
+  return ${ensured}
+}
+
+# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
+
+# FIXME/2019-12-22 23:06: Split this long fcn. (And send to own repo. home-fries-rm-safe)
+# FIXME/2019-12-22 23:15: Honor `--` signalling end of options, to ignore -rf feature
+#                         (i.e., treat "-rf" as filename).
+rm_safe () {
+  local rm_recursive_force=false
+  if [[ "-rf" == "${1}" ]]; then
+    >&2 echo "rm_safe: ‘/bin/rm -rf’, you got it!"
+    #return 1
+    shift
+    #/bin/rm -rf "$*"
+    rm_recursive_force=true
+  fi
+  if [[ ${#*} -eq 0 ]]; then
+    >&2 echo "rm_safe: Missing operand(s)"
+    >&2 echo "Try \`/bin/rm --help\` for more information"
+    return 1
+  fi
+  if ${rm_recursive_force}; then
+    /bin/rm -rf "$@"
+    return 0
+  fi
+  if [[ -z "${DUBS_USE_TRASH_DIR}" ]]; then
+    # We set DUBS_USE_TRASH_DIR in this file, so if here, DEV's fault.
+    >&2 echo "rm_safe: No \$DUBS_USE_TRASH_DIR (‘’), what gives?"
+    return 1
+  fi
+  # echo "DUBS_USE_TRASH_DIR: ${DUBS_USE_TRASH_DIR}"
+  # The trash can way!
+  # You can disable the trash by running
+  #   /bin/rm -rf ~/.trash && touch ~/.trash
+  # You can make the trash with rmtrash or mkdir ~/.trash,
+  #   or run the command and you'll be prompted.
+  # EXPLAIN/2019-12-22: (lb): Would $@ instead of $* allow us to avoid IFS?
+  local old_IFS=$IFS
+  IFS=$'\n'
+  local fpath=""
+  for fpath in $*; do
+    local bname=$(basename -- "${fpath}")
+    if [[ ${bname} == '.' || ${bname} == '..' ]]; then
+      continue
+    fi
+    # A little trick to make sure to use the trash can on
+    # the right device, to avoid copying files.
+    # NOTE/2017-06-03: The device_on_which fcn. returns nonzero on error,
+    # for reason the $? -ne 0 isn't seeing it (and I could swear that it
+    # used to work!). So check for the empty string, too!
+    local trash_device=$(device_on_which_file_resides "${DUBS_USE_TRASH_DIR}")
+    if [[ $? -ne 0 || ${trash_device} == "" ]]; then
+      >&2 echo "rm_safe: No device for supposed trash dir. ‘${DUBS_USE_TRASH_DIR}’"
+      return 1
+    fi
+    # echo "trash_device: ${trash_device}"
+    local fpath_device=$(device_on_which_file_resides "${fpath}")
+    if [[ $? -ne 0 || ${fpath_device} == "" ]]; then
+      if [[ ! -d "${fpath}" && ! -f "${fpath}"  &&! -h "${fpath}" ]]; then
+        >&2 echo "rm_safe: Cannot remove ‘$1’: No such file or directory"
+      else
+        >&2 echo "rm_safe: ERROR: Could not detect device for item ‘${fpath}’"
+      fi
+      return 1
+    fi
+    # echo "fpath_device: ${fpath_device}"  # E.g., "/dev/sdb1"
+    # echo "trash_device: ${trash_device}"  # E.g., "/dev/sda2"
+    local device_trashdir=""
+    if [[ ${trash_device} = ${fpath_device} ]]; then
+      # MAYBE: Update this fcn. to support specific trash
+      # directories on each device. For now you can specify
+      # one specific dir for one drive (generally /home/$LOGNAME/.trash)
+      # and then all other drives it's assumed to be at, e.g.,
+      # /media/XXX/.trash.
+      device_trashdir="${DUBS_USE_TRASH_DIR}"
+    else
+      device_trashdir=$(device_filepath_for_file "${fpath}")
+      trash_device=${fpath_device}
+    fi
+    ensure_trashdir "${device_trashdir}" "${trash_device}"
+    ensured=$?
+    if [[ ${ensured} -eq 3 ]]; then
+      # Ask if user wants to move file to home-trash instead.
+      device_trashdir="${DUBS_USE_TRASH_DIR}"
+      if $echo_boxy; then
+        echo "┌────────────────────────${device_trashdir//?/─}───────────┐"
+        echo "│ Move to main trash at ‘${device_trashdir}/.trash’ ? │"
+        echo -n "│ Move item? [y/N]:                 ${device_trashdir//?/ }│"
+        echo -n -e "\r"
+        echo -n "│ Move item? [y/N]: "
+      else
+        echo -n -e "rm_safe: move item to trash at ‘$(fg_lavender)${device_trashdir}/.trash$(attr_reset)’? [y/N] "
+      fi
+      read the_choice
+      if $echo_boxy; then
+        >&2 echo "└──────────────────────${device_trashdir//?/─}─────────────┘"
+      fi
+      if [[ ${the_choice} != "y" && ${the_choice} != "Y" ]]; then
+        ensured=2
+      else
+        ensured=4
+      fi
+    fi
+    if [[ ${ensured} -eq 2 ]]; then
+      # User specifically not using safety trash on this device; or for this file.
+      /bin/rm -i "${fpath}"
+    elif [[ ${ensured} -eq 4 ]]; then
+      # ensured=4 means the trash directory exists; move 'deleted' files there.
+      local fname=${bname}
+      if [[ -e "${device_trashdir}/.trash/${fname}" \
+         || -h "${device_trashdir}/.trash/${fname}" ]]; then
+        fname="${bname}.$(date +%Y_%m_%d_%Hh%Mm%Ss_%N)"
+      fi
+      # If fpath is a symlink and includes a trailing slash, doing a raw mv:
+      #  /bin/mv "${fpath}" "${device_trashdir}/.trash/${fname}"
+      # causes the response:
+      #  /bin/mv: cannot move ‘symlink/’ to
+      #   ‘/path/to/.trash/symlink.2015_12_03_14h26m51s_179228194’: Not a directory
+      /bin/mv "$(dirname -- "${fpath}")/${bname}" "${device_trashdir}/.trash/${fname}"
+    fi
+  done
+  IFS=$old_IFS
+}
+
+rm_safe_deprecated () {
+  /bin/mv --target-directory ${DUBS_USE_TRASH_DIR}/.trash "$*"
+}
+
+# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
+
+source_deps
+unset -f source_deps
+
+if [ "${BASH_SOURCE[0]}" = "$0" ]; then
+  rm_safe "${@}"
+else
+  export -f rm_safe
+fi
+

@@ -1,0 +1,37 @@
+#!/bin/bash
+# vim:tw=0:ts=2:sw=2:et:norl:ft=sh
+# Project: https://github.com/landonb/sh-rm_safe#🗑
+# License: MIT
+
+# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
+
+device_on_which_file_resides () {
+  local owning_device=""
+  if [[ -d "$1" || -f "$1" ]]; then
+    owning_device=$(/bin/df -T "$1" | awk 'NR == 2 {print $1}')
+  elif [[ -h "$1" ]]; then
+    # A symbolic link, so don't use the linked-to file's location, and don't
+    # die if the link is dangling (df says "No such file or directory").
+    owning_device=$(/bin/df -T $(dirname -- "$1") | awk 'NR == 2 {print $1}')
+  else
+    owning_device=""
+    # 2017-06-03: For some reason, the caller checking $? for nonzero
+    # is not working, so echo empty string instead.
+    #echo "ERROR: Not a directory, regular file, or symbolic link: $1."
+    echo ""
+    return 1
+  fi
+  if [[ $owning_device == "" ]]; then
+    echo "WARNING: \`df\` returned empty string but file exists?: $1"
+  fi
+  echo $owning_device
+}
+
+# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
+
+if [ "${BASH_SOURCE[0]}" = "$0" ]; then
+  device_on_which_file_resides "${@}"
+else
+  export -f device_on_which_file_resides
+fi
+
