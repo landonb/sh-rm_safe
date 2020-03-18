@@ -5,11 +5,12 @@
   "scripts": [
     "bin/path_device",
     "bin/rm_rotate",
-    "bin/rm_safe"
+    "bin/rm_safe",
+    "bin/rmrm"
   ],
   "install": "make install",
   "dependencies": {
-    "landonb/sh-colorlib": "master"
+    "landonb/sh-colors": "master"
   }
 }
 
