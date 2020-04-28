@@ -72,6 +72,8 @@ rmrm () {
   #       will be expanded to all the files in the cur. dir.
   #       So parse the last history entry (which is the current
   #       command, which Bash will replace on the `history -s`).
+  #
+  # NOTE: This trick only works if `rmrm` sourced!
   history -s "#$(
     history 1 | /bin/sed -E 's/^ +[0-9]+ +[-0-9]+ +[:0-9]+ //'
   )"
@@ -82,6 +84,7 @@ rmrm () {
 if [ "${BASH_SOURCE[0]}" = "$0" ]; then
   rmrm "${@}"
 else
+  # This is the Happy Path that adds the #history trick.
   export -f rmrm
 fi
 
