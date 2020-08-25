@@ -9,6 +9,12 @@ RM_SAFE_TRASH_HOME="${RM_SAFE_TRASH_HOME:-${HOME}}"
 
 echo_boxy=false
 
+# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
+
+first_char_capped () {
+  echo "$1" | cut -c1-1 | tr '[:lower:]' '[:upper:]'
+}
+
 # 2016-04-26: I added rm_rotate because, while trashes were being
 # created on different devices from rm_safe, rmtrash was only emptying
 # the trash in the user's home.
@@ -43,7 +49,10 @@ rm_rotate () {
       local yes_or_no=""
       echo -n "Empty all items from trash at ‘${trash_path}’? [y/n] "
       read -e yes_or_no
-      if [ "${yes_or_no^^}" = "Y" ]; then
+      # Was Bash-only:
+      #   if [ "${yes_or_no^^}" = "Y" ]; then
+      # But now POSIX:
+      if [ "$(first_char_capped ${yes_or_no})" = 'Y' ]; then
         if [ -d "${trash_path}-TBD" ]; then
           /bin/rm -rf -- "${trash_path}-TBD"
         fi
