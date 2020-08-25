@@ -123,23 +123,42 @@ _sh_rm_safe_device_filepath_for_file () {
   #   usage_report=$(/bin/df -T "$1")
   #   device_path=$(echo "$usage_report" | awk 'NR == 2 {for(i=7;i<=NF;++i) print $i}')
   # but it seems easier to me (lb) -- or at least more intuitive -- to use tail-tr-cut.
-  # 2020-08-25: (lb): I had `df -T` here, but (a) prints file system type on GNU/Linux,
-  # but filters by type on macOS; also (b) on Linux I see same output with or without.
-  #   usage_report="$(/bin/df -T -- "${file}" | tail -1)"
-  usage_report="$(/bin/df -- "${file}" | tail -1)"
+  # 2020-08-25: (lb): I had `df -T` here, but it's not macOS-compatible: it prints file
+  # system type on GNU/Linux, but filters by type on macOS. Also don't use its output here.
+  # And switching to `/usr/bin/env df` to avoid any aliasing.
+  # - Note that on Linux/Gnu, df prints 6 columns/fields:
+  #     Filesystem    1K-blocks  Used  Available  Use%      Mounted on
+  #   Note that on macOS/BSD, df prints 9 columns/fields:
+  #     Filesystem   512-blocks  Used  Available  Capacity  iused  ifree  %iused  Mounted on
+  #   But rather than test `is_os_macos` and/or `is_os_linux`,
+  #   we could do some shell pipeline trickery. E.g., consider:
+  #     $ echo 'maps.google.com' | rev | cut -d'.' -f 1 | rev
+  #     com
+  usage_report="$(/usr/bin/env df -- "${file}" | tail -1)"
   if [ $? -eq 0 ]; then
-    device_path="$(echo "${usage_report}" | tr -s ' ' | cut -d ' ' -f7)"
+    # Linux df (without -T):
+    #   device_path="$(echo "${usage_report}" | tr -s ' ' | cut -d ' ' -f6)"
+    # Linux- and macOS-compatible:
+    device_path="$(echo "${usage_report}" | tr -s ' ' | rev | cut -d' ' -f1) | rev"
     _trace "usage_report=${usage_report}"
   else
+    # 2020-08-25: Does this happen only on ${file} not found? (lb): I think so.
     if [ ! -L "${file}" ]; then
       # df didn't find file, and file not a symlink.
       echo "WARNING: Using relative path because not a file: ${file}"
-    # else, df didn't find symlink because it points at non existant file.
+    # else, df didn't find symlink because it points at non existent file.
     fi
     # 2020-08-25: (lb): See comment above: I removed `-T` option.
+    # 2020-08-25: HAHA: Instead of piping to/out of `rev`, use awk `NF`.
+    # - Not sure why, why I was using a more complicated for-loop:
+    #     device_path="$( \
+    #       /usr/bin/env df -- "$(dirname -- "${file}")" \
+    #       | awk 'NR == 2 {for(i=NF;i<=NF;++i) print $i}' \
+    #     )"
+    # but it occurs to me now this is much simpler:
     device_path="$( \
-      /bin/df -- "$(dirname -- "${file}")" \
-      | awk 'NR == 2 {for(i=7;i<=NF;++i) print $i}' \
+      /usr/bin/env df -- "$(dirname -- "${file}")" \
+      | awk 'NR == 2 {print $NF}' \
     )"
   fi
   _trace "device_path=${device_path}"
