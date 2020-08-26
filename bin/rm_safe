@@ -346,7 +346,10 @@ rm_safe () {
       if [ -e "${device_trashdir}/.trash/${fname}" ] || \
          [ -h "${device_trashdir}/.trash/${fname}" ]; \
       then
-        fname="${bname}.$(date +%Y_%m_%d_%Hh%Mm%Ss_%N)"
+        # 2020-08-26: Note that `date +%N` is not an option on macOS, prints just 'N'.
+        # We could call home_fries_nanos_now for nanos, but we're adding the N to
+        # generate a unique name -- so might as well replace with UUID fragment.
+        fname="${bname}.$(date +%Y_%m_%d_%Hh%Mm%Ss)-$(uuidgen | head -c8)"
       fi
       # If fpath is a symlink and includes a trailing slash, doing a raw mv:
       #  /bin/mv "${fpath}" "${device_trashdir}/.trash/${fname}"
