@@ -47,7 +47,7 @@ rm_rotate () {
     YES_OR_NO="N"
     if [ -d "${trash_path}" ]; then
       local yes_or_no=""
-      echo -n "Empty all items from trash at ‘${trash_path}’? [y/n] "
+      /usr/bin/env echo -n "Empty all items from trash at ‘${trash_path}’? [y/n] "
       read -e yes_or_no
       # Was Bash-only:
       #   if [ "${yes_or_no^^}" = "Y" ]; then
