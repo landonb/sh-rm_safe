@@ -172,7 +172,7 @@ _sh_rm_safe_ensure_trashdir () {
   local trash_device="$2"
   local ensured=1
   if [ -z "${device_trashdir}" ]; then
-    >&2 echo 'rm_safe: there is no $device_trashdir specified'
+    >&2 echo 'rm_safe: No $device_trashdir (‘’) specified'
     ensured=1  # So caller does nothing more.
     return ${ensured}
   fi
