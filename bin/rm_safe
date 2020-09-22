@@ -121,7 +121,7 @@ _sh_rm_safe_device_filepath_for_file () {
   local usage_report=''
   # NOTE: We could use awk to get the second line of output, e.g.,
   #   usage_report=$(/bin/df -T "$1")
-  #   device_path=$(echo "$usage_report" | awk 'NR == 2 {for(i=7;i<=NF;++i) print $i}')
+  #   device_path=$(echo "${usage_report}" | awk 'NR == 2 {for(i=7;i<=NF;++i) print $i}')
   # but it seems easier to me (lb) -- or at least more intuitive -- to use tail-tr-cut.
   # 2020-08-25: (lb): I had `df -T` here, but it's not macOS-compatible: it prints file
   # system type on GNU/Linux, but filters by type on macOS. Also don't use its output here.
