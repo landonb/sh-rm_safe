@@ -53,8 +53,8 @@ readlink_f () {
     done
     cd "${before_cd}"
   fi
-  echo -n "${resolve_path}"
-  [ -n "${resolve_path}" ] && echo
+  printf %s "${resolve_path}"
+  [ -n "${resolve_path}" ] && printf '\n'
   return ${ret_code}
 }
 
@@ -179,11 +179,12 @@ _sh_rm_safe_ensure_trashdir () {
   if [ -f "${device_trashdir}/.trash" ]; then
     ensured=2  # So caller invokes `rm -i`.
     # MAYBE: Suppress this message, or at least don't show multiple times for
-    #        same ${trash_device}, i.e., on `rm *.*` would echo for every file.
+    #        same ${trash_device}, i.e., or `rm *.*` will echo for every file.
     >&2 echo "The trash is disabled on device ‘${trash_device}’"
   else
     if [ ! -e "${device_trashdir}/.trash" ]; then
-      >&2 echo -e "No root trash found for device ‘$(fg_lavender)${trash_device}$(attr_reset)’"
+      >&2 printf '%b\n' \
+        "No root trash found for device ‘$(fg_lavender)${trash_device}$(attr_reset)’"
       sudo_prefix=""
       if [ "${device_trashdir}" = "/" ]; then
         # The file being deleted lives on the root device but the default
@@ -200,14 +201,16 @@ _sh_rm_safe_ensure_trashdir () {
         device_trashdir=''
       fi
       if ${echo_boxy}; then
-        echo    "┌──────────────────────${device_trashdir//?/─}─────────────┐"
-        echo    "│ Create new trash at ‘${device_trashdir}/.trash’ ?   │"
-        echo -n "│ Create trash? [y/N]:              ${device_trashdir//?/ }│"
-        echo -n -e "\r"
-        echo -n "│ Create trash? [y/N]: "
+        printf '%s\n' "┌──────────────────────${device_trashdir//?/─}─────────────┐"
+        printf '%s\n' "│ Create new trash at ‘${device_trashdir}/.trash’ ?   │"
+        printf '%s'   "│ Create trash? [y/N]:              ${device_trashdir//?/ }│"
+        printf '\r'
+        printf '%s'   "│ Create trash? [y/N]: "
       else
-        >&2 echo -e "- HINT: To skip this ask: $(fg_lavender)touch ${device_trashdir}/.trash$(attr_reset)"
-        echo -n -e "rm_safe: create a new trash at ‘$(fg_lavender)${device_trashdir}/.trash$(attr_reset)’? [y/N] "
+        >&2 printf '%b\n' \
+          "- HINT: To skip this ask: $(fg_lavender)touch ${device_trashdir}/.trash$(attr_reset)"
+        printf '%b' \
+          "rm_safe: create a new trash at ‘$(fg_lavender)${device_trashdir}/.trash$(attr_reset)’? [y/N] "
       fi
       read the_choice
       if [ "${the_choice}" != "y" ] && [ "${the_choice}" != "Y" ]; then
@@ -318,17 +321,18 @@ rm_safe () {
       # Ask if user wants to move file to home-trash instead.
       device_trashdir="${RM_SAFE_TRASH_HOME}"
       if ${echo_boxy}; then
-        echo    "┌────────────────────────${device_trashdir//?/─}───────────┐"
-        echo    "│ Move to main trash at ‘${device_trashdir}/.trash’ ? │"
-        echo -n "│ Move item? [y/N]:                 ${device_trashdir//?/ }│"
-        echo -n -e "\r"
-        echo -n "│ Move item? [y/N]: "
+        printf '%s\n' "┌────────────────────────${device_trashdir//?/─}───────────┐"
+        printf '%s\n' "│ Move to main trash at ‘${device_trashdir}/.trash’ ? │"
+        printf '%s'   "│ Move item? [y/N]:                 ${device_trashdir//?/ }│"
+        printf '\r'
+        printf '%s'   "│ Move item? [y/N]: "
       else
-        echo -n -e "rm_safe: move item to trash at ‘$(fg_lavender)${device_trashdir}/.trash$(attr_reset)’? [y/N] "
+        printf '%b' \
+          "rm_safe: move item to trash at ‘$(fg_lavender)${device_trashdir}/.trash$(attr_reset)’? [y/N] "
       fi
       read the_choice
       if ${echo_boxy}; then
-        >&2 echo "└──────────────────────${device_trashdir//?/─}─────────────┘"
+        >&2 echo      "└──────────────────────${device_trashdir//?/─}─────────────┘"
       fi
       if [ "${the_choice}" != "y" ] && [ "${the_choice}" != "Y" ]; then
         ensured=2

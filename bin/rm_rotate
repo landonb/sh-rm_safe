@@ -12,7 +12,7 @@ echo_boxy=false
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
 
 first_char_capped () {
-  echo "$1" | cut -c1-1 | tr '[:lower:]' '[:upper:]'
+  printf "$1" | cut -c1-1 | tr '[:lower:]' '[:upper:]'
 }
 
 # 2016-04-26: I added rm_rotate because, while trashes were being
@@ -47,7 +47,7 @@ rm_rotate () {
     YES_OR_NO="N"
     if [ -d "${trash_path}" ]; then
       local yes_or_no=""
-      /usr/bin/env echo -n "Empty all items from trash at ‘${trash_path}’? [y/n] "
+      printf %s "Empty all items from trash at ‘${trash_path}’? [y/n] "
       read -e yes_or_no
       # Was Bash-only:
       #   if [ "${yes_or_no^^}" = "Y" ]; then
