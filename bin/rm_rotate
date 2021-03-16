@@ -57,6 +57,8 @@ rm_rotate () {
       return 0
     fi
 
+    local to_be_deleted="${trash_path}-TBD"
+
     local yes_or_no=""
     printf %s "Empty all items from trash at ‘${trash_path}’? [y/n] "
     read -e yes_or_no
@@ -76,16 +78,16 @@ rm_rotate () {
     #   and moves the active trash to the TBD position. Thus, if user
     #   wants to really permantently remove what's in the trash, they
     #   run rm_trash twice in a row.
-    if [ -d "${trash_path}-TBD" ]; then
-      /bin/rm -rf -- "${trash_path}-TBD"
+    if [ -d "${to_be_deleted}" ]; then
+      /bin/rm -rf -- "${to_be_deleted}"
     fi
 
     # Avoid creating -TBD directory if trash already empty.
     if [ -n "$(/bin/ls -- "${trash_path}")" ]; then
       # Trash not empty. Move to TBD position (will be deleted on next
       # rm_rotate), and then create a new trash directory.
-      /bin/mv -- "${trash_path}" "${trash_path}-TBD"
-      touch -- "${trash_path}-TBD"
+      /bin/mv -- "${trash_path}" "${to_be_deleted}"
+      touch -- "${to_be_deleted}"
       mkdir -- "${trash_path}"
     fi
   }
