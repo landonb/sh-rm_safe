@@ -200,7 +200,7 @@ rm_safe () {
     shift
     rm_recursive_force=true
   fi
-  if [ ${#*} -eq 0 ]; then
+  if [ ${#} -eq 0 ]; then
     >&2 echo "rm_safe: Missing operand(s)"
     >&2 echo "Try \`/bin/rm --help\` for more information"
     return 1
