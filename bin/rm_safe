@@ -91,7 +91,7 @@ _sh_rm_safe_device_filepath_for_file () {
     # Linux df (without -T):
     #   device_path="$(echo "${usage_report}" | tr -s ' ' | cut -d ' ' -f6)"
     # Linux- and macOS-compatible:
-    device_path="$(echo "${usage_report}" | tr -s ' ' | rev | cut -d' ' -f1) | rev"
+    device_path="$(echo "${usage_report}" | tr -s ' ' | rev | cut -d' ' -f1 | rev)"
     _trace "usage_report=${usage_report}"
   else
     # 2020-08-25: Does this happen only on ${file} not found? (lb): I think so.
