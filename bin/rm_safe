@@ -67,7 +67,13 @@ _trace () { :; }
 # YOU: Uncomment if you want a few runtime details.
 #  _trace () { >&2 echo "$@"; }
 
-_sh_rm_safe_device_filepath_for_file () {
+_sh_rm_safe_device_filepath_for_path () {
+  local file="$1"
+
+  _sh_rm_safe_device_filepath_for_path_file "${file}"
+}
+
+_sh_rm_safe_device_filepath_for_path_file () {
   local file="$1"
   local device_path=''
   local usage_report=''
@@ -264,7 +270,7 @@ rm_safe () {
       # /media/XXX/.trash.
       device_trashdir="${RM_SAFE_TRASH_HOME}"
     else
-      device_trashdir=$(_sh_rm_safe_device_filepath_for_file "${fpath}")
+      device_trashdir=$(_sh_rm_safe_device_filepath_for_path "${fpath}")
       trash_device=${fpath_device}
     fi
 
