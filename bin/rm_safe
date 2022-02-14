@@ -140,6 +140,7 @@ _sh_rm_safe_device_filepath_for_path_file () {
 _sh_rm_safe_ensure_trashdir () {
   local device_trashdir="$1"
   local trash_device="$2"
+
   local ensured=1
 
   if [ -z "${device_trashdir}" ]; then
@@ -154,7 +155,7 @@ _sh_rm_safe_ensure_trashdir () {
     >&2 echo "The trash is disabled on device ‘${trash_device}’"
   else
     if [ ! -e "${device_trashdir}/.trash" ]; then
-      _sh_rm_safe_prompt_missing_trashdir_options "${device_trashdir}" "${trash_device}"
+      _sh_rm_safe_prompt_missing_trashdir_options_v1 "${device_trashdir}" "${trash_device}"
       ensured=$?
     fi
     if [ -d "${device_trashdir}/.trash" ]; then
@@ -165,19 +166,22 @@ _sh_rm_safe_ensure_trashdir () {
   return ${ensured}
 }
 
-_sh_rm_safe_prompt_missing_trashdir_options () {
+_sh_rm_safe_prompt_missing_trashdir_options_v1 () {
   local device_trashdir="$1"
   local trash_device="$2"
+
   local ensured=1
 
   >&2 printf '%b\n' \
     "No root trash found for device ‘$(fg_lavender)${trash_device}$(attr_reset)’"
-  sudo_prefix=""
+
+  local sudo_prefix=""
+
   if [ "${device_trashdir}" = "/" ]; then
     # The file being deleted lives on the root device but the default
     # trash directory is not on the same device. This could mean the
     # user has an encrypted home directory. Rather than moving files
-    # to the encryted space, use an unencrypted trash location, but
+    # to the encrypted space, use an unencrypted trash location, but
     # make the user do it.
     >&2 echo
     >&2 echo "No root trash directory ‘/.trash’ found on root device ‘/’"
@@ -187,6 +191,7 @@ _sh_rm_safe_prompt_missing_trashdir_options () {
     sudo_prefix="sudo"
     device_trashdir=''
   fi
+
   if ${echo_boxy}; then
     printf '%s\n' "┌──────────────────────${device_trashdir//?/─}─────────────┐"
     printf '%s\n' "│ Create new trash at ‘${device_trashdir}/.trash’ ?   │"
@@ -199,7 +204,9 @@ _sh_rm_safe_prompt_missing_trashdir_options () {
     printf '%b' \
       "rm_safe: create a new trash at ‘$(fg_lavender)${device_trashdir}/.trash$(attr_reset)’? [y/N] "
   fi
+
   read the_choice
+
   if [ "${the_choice}" != "y" ] && [ "${the_choice}" != "Y" ]; then
     ensured=3  # So caller asks to move to home-trash; or invokes `rm -i`.
     if ${echo_boxy}; then
