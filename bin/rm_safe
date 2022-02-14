@@ -70,6 +70,18 @@ _trace () { :; }
 _sh_rm_safe_device_filepath_for_path () {
   local file="$1"
 
+  # If file is a symlink, use the device for the directory instead.
+  # - For one, `df` exits error and prints 'No such file or directory'
+  #   on broken symlink,
+  # - But more importantly, `df` deferences the symlink, and the target
+  #   might be on a different device than the symlink itself! And the
+  #   whole point of device-local trash directories is to avoid copying.
+  #   (Not that copying a symlink is expensive, but it's the principle
+  #    of the idea!)
+  if [ -h "${file}" ]; then
+    file="."
+  fi
+
   _sh_rm_safe_device_filepath_for_path_file "${file}"
 }
 
