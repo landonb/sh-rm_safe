@@ -392,14 +392,14 @@ rm_safe () {
 
     # ***
 
-    # A little trick to make sure to use the trash can on
-    # the right device, to avoid copying files.
-    # NOTE/2017-06-03: The device_on_which fcn. returns nonzero on error,
-    # for reason the $? -ne 0 isn't seeing it (and I could swear that it
-    # used to work!). So check for the empty string, too!
-    local trash_device=$(path_device "${RM_SAFE_TRASH_HOME}")
+    # A little trick to make sure to use the trash path on the local device,
+    # to avoid copying files.
+    # - path_device exits nonzero if path not symlink, file, or dir.
+    local trash_device
+    trash_device=$(path_device "${RM_SAFE_TRASH_HOME}")
     if [ $? -ne 0 ] || [ "${trash_device}" = "" ]; then
       >&2 echo "rm_safe: No device for supposed trash dir. ‘${RM_SAFE_TRASH_HOME}’"
+
       return 1
     fi
     _trace "trash_device=${trash_device}"  # E.g., "/dev/sda2"
@@ -414,6 +414,7 @@ rm_safe () {
       else
         >&2 echo "rm_safe: ERROR: Could not detect device for item ‘${fpath}’"
       fi
+
       return 1
     fi
     _trace "fpath_device=${fpath_device}"  # E.g., "/dev/sdb1"
