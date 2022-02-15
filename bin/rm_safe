@@ -238,6 +238,39 @@ _sh_rm_safe_prompt_missing_trashdir_options_v1 () {
 
 # ***
 
+_sh_rm_safe_prompt_missing_trashdir_options_v1_prompt_home_trash () {
+  local device_trashdir="$1"
+
+  local ensured=3
+
+  if ${echo_boxy}; then
+    printf '%s\n' "┌────────────────────────${device_trashdir//?/─}───────────┐"
+    printf '%s\n' "│ Move to main trash at ‘${device_trashdir}/.trash’ ? │"
+    printf '%s'   "│ Move item? [y/N]:                 ${device_trashdir//?/ }│"
+    printf '\r'
+    printf '%s'   "│ Move item? [y/N]: "
+  else
+    printf '%b' \
+      "rm_safe: move item to trash at ‘$(fg_lavender)${device_trashdir}/.trash$(attr_reset)’? [y/N] "
+  fi
+
+  read the_choice
+
+  if ${echo_boxy}; then
+    >&2 echo      "└──────────────────────${device_trashdir//?/─}─────────────┘"
+  fi
+
+  if [ "${the_choice}" != "y" ] && [ "${the_choice}" != "Y" ]; then
+    ensured=2
+  else
+    ensured=4
+  fi
+
+  return ${ensured}
+}
+
+# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
+
 _sh_rm_safe_prompt_missing_trashdir_options_v2 () {
   local device_trashdir="$1"
   local trash_device="$2"
@@ -260,25 +293,8 @@ _sh_rm_safe_process_items () {
   if [ ${ensured} -eq 3 ]; then
     # Ask if user wants to move file to home-trash instead.
     device_trashdir="${RM_SAFE_TRASH_HOME}"
-    if ${echo_boxy}; then
-      printf '%s\n' "┌────────────────────────${device_trashdir//?/─}───────────┐"
-      printf '%s\n' "│ Move to main trash at ‘${device_trashdir}/.trash’ ? │"
-      printf '%s'   "│ Move item? [y/N]:                 ${device_trashdir//?/ }│"
-      printf '\r'
-      printf '%s'   "│ Move item? [y/N]: "
-    else
-      printf '%b' \
-        "rm_safe: move item to trash at ‘$(fg_lavender)${device_trashdir}/.trash$(attr_reset)’? [y/N] "
-    fi
-    read the_choice
-    if ${echo_boxy}; then
-      >&2 echo      "└──────────────────────${device_trashdir//?/─}─────────────┘"
-    fi
-    if [ "${the_choice}" != "y" ] && [ "${the_choice}" != "Y" ]; then
-      ensured=2
-    else
-      ensured=4
-    fi
+
+    _sh_rm_safe_prompt_missing_trashdir_options_v1_prompt_home_trash "${device_trashdir}"
   fi
 
   if [ ${ensured} -eq 2 ]; then
