@@ -170,8 +170,12 @@ _sh_rm_safe_ensure_trashdir () {
     fi
   else
     if [ ! -e "${trash_fs_mount}/${RM_SAFE_TRASH_NAME}" ]; then
-      _sh_rm_safe_prompt_missing_trashdir_options_v1 "${fs_of_item}"
-      ensured=$?  # Will be ensured=0 or ensured=3
+      # 2022-02-14: Choose your poison:
+      #  _sh_rm_safe_prompt_missing_trashdir_options_v1 "${fs_of_item}"
+      #  ensured=$?  # Will be ensured=0 or ensured=3
+      _sh_rm_safe_prompt_missing_trashdir_options_v2 \
+        "${fs_of_item}" "${item_path}" "${nitems_to_go}"
+      ensured=$?  # For return values, see #ensured_legend
     fi
 
     if [ -d "${trash_fs_mount}/${RM_SAFE_TRASH_NAME}" ]; then
@@ -189,6 +193,7 @@ _sh_rm_safe_prompt_missing_trashdir_options_v1 () {
 
   local ensured=0
 
+  # v1 preso option.
   local echo_boxy=true
 
   >&2 printf '%b\n' \
@@ -288,12 +293,282 @@ _sh_rm_safe_prompt_missing_trashdir_options_v1_prompt_home_trash () {
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
 
 _sh_rm_safe_prompt_missing_trashdir_options_v2 () {
-  local device_trashdir="$1"
-  local trash_device="$2"
+  local fs_of_item="$1"
+  local item_path="$2"
+  local nitems_to_go="$3"
 
+  # For return values, see #ensured_legend
   local ensured=0
 
+  _sh_rm_safe_verify_non_root_trash_fs_mount "${trash_fs_mount}" ${item_path} ||
+    return 1  # ensured=1 stops processing.
+
+  # At this point, "${trash_fs_mount}/.trash" does not exist, and is not `/.trash`.
+  # - So ask user what they want to do.
+
+  ! ${previously_printed_missing_trashdir_prompt} || echo
+
+  _sh_rm_safe_prompt_missing_trashdir_print_notice "${fs_of_item}"
+
+  _sh_rm_safe_prompt_missing_trashdir_print_header "${item_path}"
+
+  _sh_rm_safe_prompt_missing_trashdir_print_options "${trash_fs_mount}" "${nitems_to_go}"
+
+  _sh_rm_safe_prompt_missing_trashdir_read_choice_and_react
+  ensured=$?
+
+  previously_printed_missing_trashdir_prompt=true
+
   return ${ensured}
+}
+
+# ***
+
+# Note that _sh_rm_safe_prompt_missing_trashdir_options_v1 checks
+# if [ "${trash_fs_mount}" = "/" ] and, if so, uses `sudo` to
+# manage a root-level `/.trash`. But that seems like something user
+# should figure out on their own.
+# - Note that `trash_fs_mount=/` happens if user is using an encrypted
+#   home directory. Otherwise, if user home is not encrypted, a system
+#   file (or a path outside user home, but on the same device) will
+#   resolve to the main, user-home trash (i.e., RM_SAFE_TRASH_HOME).
+#   - So this is indeed a very rare or at least special use case
+#     that we shouldn't bother handling.
+_sh_rm_safe_verify_non_root_trash_fs_mount () {
+  local trash_fs_mount="$1"
+  local item_path="$2"
+
+  [ "${trash_fs_mount}" = "/" ] || return 0
+
+  >&2 echo
+  >&2 echo "The device-local trash resolved to the root device (‘/’) for item: ‘${item_path}’"
+  >&2 echo
+  >&2 echo "- It's possible that user home is encrypted (good job!), meaning"
+  >&2 echo "  the main trash in on a different logical device than this file."
+  >&2 echo
+  >&2 echo "Because this is a special case, you're on your own. Sorry!"
+  >&2 echo
+
+  return 1
+}
+
+# ***
+
+_sh_rm_safe_prompt_missing_trashdir_print_notice () {
+  local fs_of_item="$1"
+
+  >&2 printf '%b\n' \
+    "NOTICE: There's no device trash for ‘$(fg_lavender)${fs_of_item}$(attr_reset)’"
+}
+
+_sh_rm_safe_prompt_missing_trashdir_print_header () {
+  local item_path="$1"
+
+  # MEH: I thought maybe saying "file" or "directory", but saying "item" so much easier.
+  #
+  #   local ftype="file"
+  #   # SYNC_ME: Pads to width of "directory" (whose length is 9, so five spaces).
+  #   local ftype_pad="     "
+  #   [ -d "${item_path}" ] && ftype="directory" && ftype_pad=""
+  #
+  #   local header="\
+  # ┌───────────────────────────────────────────────────────────────────────┐
+  # │ Please choose an option for the ${ftype} named:                      ${ftype_pad}│
+
+  # SYNC_ME: There are 66 spaces between "‘${item_path}’" and "│" if item_path=''.
+  let "ftype_nspaces = 66 - ${#item_path}"
+  local ftype_postfix=""
+  # Require minimum 1 space so 66-character path name won't look like it ends with "│".
+  if [ ${ftype_nspaces} -gt 1 ]; then
+    ftype_postfix="$(eval "printf ' %.0s' {1..${ftype_nspaces}}")│"
+    # CRUMB: Same outcome as another repeat character trick:
+    #  let "ftype_nspaces = 66 - ${#item_path} + 1"  # Add one for '│'
+    #  ftype_postfix="$(eval "printf '%*s' ${ftype_nspaces} '│'")"
+  fi
+
+  local header="\
+┌───────────────────────────────────────────────────────────────────────┐
+│ Please choose an option for the item named:                           │
+│                                                                       │
+│   ‘${item_path}’${ftype_postfix}
+│                                                                       │"
+
+  echo "${header}"
+}
+
+# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
+
+_sh_rm_safe_prompt_missing_trashdir_print_options () {
+  local trash_fs_mount="$1"
+  local nitems_to_go="$2"
+
+  # ***
+
+  local option_list="d/m/<Enter>/r/R/h"
+
+  local text_move_all_items_to_new_trash="\
+│       - Will move this item to:                                       │"
+  local text_move_this_item_to_main_trash="\
+│       - Will move this item to:                                       │"
+  local option_send_all_to_main_trash=""
+  local option_obliterate_all_items=""
+
+  if [ ${nitems_to_go} -gt 0 ]; then
+    option_list="d/m/a/<Enter>/r/R/Ra/h"
+
+    text_move_all_items_to_new_trash="\
+│       - Will move this (and all items) to:                            │"
+    text_move_this_item_to_main_trash="\
+│       - Will move this (and only this) item to:                       │"
+    option_send_all_to_main_trash="
+│                                                                       │
+│ ► a   Send [a]ll matching items (files & directories) to main trash   │"
+    option_obliterate_all_items="
+│ ► Ra  Choose [Ra] to obliterate all matching items                    │"
+  fi
+
+  # ***
+
+  local device_trash="${trash_fs_mount}/${RM_SAFE_TRASH_NAME}"
+
+  # SYNC_ME: There are 59 spaces between "‘${device_trash}’" and "│" if device_trash=''.
+  # - E.g.,
+  #     │          ‘’                                                           │
+  let "device_trash_nspaces = 59 - ${#device_trash}"
+  local device_trash_postfis=""
+  # Require minimum 1 space so 66-character path name won't look like it ends with "│".
+  if [ ${device_trash_nspaces} -gt 1 ]; then
+    device_trash_postfis="$(eval "printf ' %.0s' {1..${device_trash_nspaces}}")│"
+    # CRUMB: Same outcome as another repeat character trick:
+    #  let "device_trash_nspaces = 66 - ${#device_trash} + 1"  # Add one for '│'
+    #  device_trash_postfis="$(eval "printf '%*s' ${device_trash_nspaces} '│'")"
+  fi
+
+  # ***
+
+  local main_trash="${RM_SAFE_TRASH_HOME}/${RM_SAFE_TRASH_NAME}"
+
+  # SYNC_ME: There are 59 spaces between "‘${main_trash}’" and "│" if main_trash=''.
+  # - E.g.,
+  #     │          ‘’                                                           │
+  let "main_trash_nspaces = 59 - ${#main_trash}"
+  local main_trash_postfis=""
+  # Require minimum 1 space so 66-character path name won't look like it ends with "│".
+  if [ ${main_trash_nspaces} -gt 1 ]; then
+    main_trash_postfis="$(eval "printf ' %.0s' {1..${main_trash_nspaces}}")│"
+    # CRUMB: Same outcome as another repeat character trick:
+    #  let "main_trash_nspaces = 66 - ${#main_trash} + 1"  # Add one for '│'
+    #  main_trash_postfis="$(eval "printf '%*s' ${main_trash_nspaces} '│'")"
+  fi
+
+  # ***
+
+  # I had this above ${option_send_all_to_main_trash} but doesn't seem helpful:
+  #   │       - (Technically cp & rm because main trash on separate device)   │\
+
+  local options="\
+│ ► d   Create a new [d]evice trash                                     │
+│                                                                       │
+${text_move_all_items_to_new_trash}
+│          ‘${device_trash}’${device_trash_postfis}
+│                                                                       │
+│ ► m   Send this item to the [m]ain trash                              │
+│                                                                       │
+${text_move_this_item_to_main_trash}
+│          ‘${main_trash}’${main_trash_postfis}\
+${option_send_all_to_main_trash}
+│                                                                       │
+│ ► ↳   [<Enter>] is the same as [m]: use main trash for current item   │
+│                                                                       │
+│ Alternatively, be destructive:                                        │
+│                                                                       │
+│ ► r   Choose [r] to call \`/bin/rm -i\` on the current item             │
+│ ► R   Choose [R] to remove without prompt (\`/bin/rm -rf\`)             │\
+${option_obliterate_all_items}
+│                                                                       │
+│ Or enter [h] for hints on how to avoid this prompt.                   │
+└───────────────────────────────────────────────────────────────────────┘"
+
+  echo "${options}"
+
+  echo -n "  ⛔ Please choose an Option [${option_list}]: "
+}
+
+# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
+
+_sh_rm_safe_prompt_missing_trashdir_read_choice_and_react () {
+  read the_choice
+
+  local device_trash="${trash_fs_mount}/${RM_SAFE_TRASH_NAME}"
+
+  # For return values, see #ensured_legend
+  if [ "${the_choice}" = "d" ]; then
+    /bin/mkdir -p "${device_trash}"
+
+    return 4  # All set! Tell caller to use ${trash_fs_mount}/.trash.
+  fi
+
+  if [ "${the_choice}" = "m" ] || [ "${the_choice}" = "" ]; then
+    # <Sigh> Technically this works, because `local` variables from parent
+    # are visible/settable from child functions. But it still feels weird.
+    trash_fs_mount="${RM_SAFE_TRASH_HOME}"
+
+    return 4  # All set! Tell caller to use ${trash_fs_mount}/.trash.
+  fi
+
+  if [ "${the_choice}" = "a" ]; then
+    trash_fs_mount="${RM_SAFE_TRASH_HOME}"
+    trash_fs_mount_locked=true
+
+    return 4  # All set!
+  fi
+
+  if [ "${the_choice}" = "r" ]; then
+    return 2  # Call gentle `rm -i` on current item.
+  fi
+
+  if [ "${the_choice}" = "R" ]; then
+    return 22  # Call destructive `rm -rf` on current item.
+  fi
+
+  if [ "${the_choice}" = "Ra" ]; then
+    return 32  # Call very destructive `rm -rf` on current and remaining items.
+  fi
+
+  if [ "${the_choice}" = "h" ]; then
+    _sh_rm_safe_print_missing_trash_fs_mount_hint "${device_trash}"
+
+    return 1  # Printing hints when ask feels like a we're-done moment.
+  fi
+}
+
+# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
+
+_sh_rm_safe_print_missing_trash_fs_mount_hint () {
+  local device_trash="$1"
+
+  local main_trash="${RM_SAFE_TRASH_HOME}/${RM_SAFE_TRASH_NAME}"
+
+  local hint="
+┌───────────────────────────────────────────────────────────────────────┐
+│  HINT: How to avoid being prompted for items on this logical device:  │
+└───────────────────────────────────────────────────────────────────────┘
+
+- 1.) To always use a local device trash, choose 'd' or run:
+
+        mkdir ${device_trash}
+
+- 2.) To always ignore trash and call \`rm -i\`:
+
+        touch ${device_trash}
+
+- 3.) To always use the main trash (in user home), run:
+
+        ln -s ${main_trash} \\
+          ${device_trash}
+"
+
+  echo "${hint}"
 }
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
@@ -314,6 +589,13 @@ _sh_rm_safe_process_items () {
   #           (b) user rejected create-new-trash prompt and remove-to-home prompt).
   #     - 3: Prompt (again) to remove to home trash (b/c user rejected create-new-trash).
   #     - 4: All set! (Remove to device-local or user-home trash.)
+  #   - v2 prompt (one prompt and only one prompt (streamlined UI)):
+  #     -  1: Stop processing (and return nonzero) (b/c DEV error (unrecoverable)).
+  #     -  2: Call safe `rm` [rm -i ] on curr item (b/c user chose <r>).
+  #     - 22: Call mean `rm` [rm -rf] on curr item (b/c user chose <R>).
+  #     - 32: Call mean `rm` [rm -rf] on all items (b/c user chose <Ra>).
+  #     -  4: All set! Remove curr item to path specified by ${trash_fs_mount}
+  #             (which is either device-local or user-home trash).
   local ensured=0
 
   _sh_rm_safe_ensure_trashdir "${fs_of_item}" "${item_path}" "${nitems_to_go}"
@@ -329,6 +611,16 @@ _sh_rm_safe_process_items () {
   if [ ${ensured} -eq 2 ]; then
     # User specifically not using safety trash on this device; or for this file.
     /bin/rm -i -- "${item_path}"
+  elif [ ${ensured} -eq 22 ] || [ ${ensured} -eq 32 ]; then
+    /bin/rm -rf -- "${item_path}"
+
+    # We already printed a prompt. Might as well print a confirmation?
+    echo
+    >&2 echo "rm_safe: Removed ‘${item_path}’"
+
+    if [ ${ensured} -eq 32 ]; then
+      rm_recursive_force=true
+    fi
   elif [ ${ensured} -eq 4 ]; then
     # ensured=4 means the trash directory is prepared; move 'deleted' files there.
     local fname=${bname}
@@ -397,7 +689,9 @@ rm_safe () {
   # ***
 
   local trash_fs_mount=""
+  local trash_fs_mount_locked=false
 
+  local previously_printed_missing_trashdir_prompt=false
   declare -A previously_printed_trash_disabled_notice
 
   # echo "RM_SAFE_TRASH_HOME: ${RM_SAFE_TRASH_HOME}"
@@ -411,10 +705,26 @@ rm_safe () {
   local old_IFS=$IFS
   IFS=$'\n'
 
+  local npath=0
+  local npaths=$#
+
   local item_path=""
   for item_path in $*; do
+    let "npath += 1"
+    let "nitems_to_go = npaths - npath"
+
     local bname=$(basename -- "${item_path}")
     if [ "${bname}" = '.' ] || [ "${bname}" = '..' ]; then
+      continue
+    fi
+
+    # ***
+
+    if ${rm_recursive_force}; then
+      /bin/rm -rf -- "${item_path}"
+
+      >&2 echo "rm_safe: Removed ‘${item_path}’"
+
       continue
     fi
 
@@ -455,6 +765,7 @@ rm_safe () {
 
     # ***
 
+    if ! ${trash_fs_mount_locked}; then
       trash_fs_mount=""
 
       if [ "${fs_of_main_trash}" = "${fs_of_item}" ]; then
@@ -469,6 +780,7 @@ rm_safe () {
         trash_fs_mount="${RM_SAFE_TRASH_HOME}"
       else
         trash_fs_mount=$(_sh_rm_safe_device_filepath_for_path "${item_path}")
+      fi
       _trace "trash_fs_mount=${trash_fs_mount}"  # E.g., "/dev/sdb1"
     fi
 
