@@ -364,17 +364,6 @@ _sh_rm_safe_prompt_missing_trashdir_print_notice () {
 _sh_rm_safe_prompt_missing_trashdir_print_header () {
   local item_path="$1"
 
-  # MEH: I thought maybe saying "file" or "directory", but saying "item" so much easier.
-  #
-  #   local ftype="file"
-  #   # SYNC_ME: Pads to width of "directory" (whose length is 9, so five spaces).
-  #   local ftype_pad="     "
-  #   [ -d "${item_path}" ] && ftype="directory" && ftype_pad=""
-  #
-  #   local header="\
-  # ┌───────────────────────────────────────────────────────────────────────┐
-  # │ Please choose an option for the ${ftype} named:                      ${ftype_pad}│
-
   # SYNC_ME: There are 66 spaces between "‘${item_path}’" and "│" if item_path=''.
   let "ftype_nspaces = 66 - ${#item_path}"
   local ftype_postfix=""
