@@ -145,22 +145,31 @@ _sh_rm_safe_ensure_trashdir () {
   local device_trashdir="$1"
   local trash_device="$2"
 
-  local ensured=1
+  local ensured=0
 
   if [ -z "${device_trashdir}" ]; then
-    >&2 echo 'rm_safe: No $device_trashdir (‘’) specified'
-    ensured=1  # So caller does nothing more.
+    # This branch happens if _sh_rm_safe_device_filepath_for_path does not
+    # find (echo) a device path.
+    # - But `df` used to determine the device path: so does this branch ever
+    #   happen? This smells like a DEV issue, not the user's.
+    # - Note that RM_SAFE_TRASH_HOME must be nonempty, so not here for that
+    #   reason.
+    >&2 echo 'rm_safe: No $device_trashdir (‘’) determined, what gives?'
+
+    ensured=1  # So caller returns error.
+
     return ${ensured}
   fi
   if [ -f "${device_trashdir}/.trash" ]; then
     ensured=2  # So caller invokes `rm -i`.
+
     # MAYBE: Suppress this message, or at least don't show multiple times for
     #        same ${trash_device}, i.e., or `rm *.*` will echo for every file.
     >&2 echo "The trash is disabled on device ‘${trash_device}’"
   else
     if [ ! -e "${device_trashdir}/.trash" ]; then
       _sh_rm_safe_prompt_missing_trashdir_options_v1 "${device_trashdir}" "${trash_device}"
-      ensured=$?
+      ensured=$?  # Will be ensured=0 or ensured=3
     fi
     if [ -d "${device_trashdir}/.trash" ]; then
       ensured=4
@@ -176,7 +185,7 @@ _sh_rm_safe_prompt_missing_trashdir_options_v1 () {
   local device_trashdir="$1"
   local trash_device="$2"
 
-  local ensured=1
+  local ensured=0
 
   >&2 printf '%b\n' \
     "No root trash found for device ‘$(fg_lavender)${trash_device}$(attr_reset)’"
@@ -278,7 +287,7 @@ _sh_rm_safe_prompt_missing_trashdir_options_v2 () {
   local device_trashdir="$1"
   local trash_device="$2"
 
-  local ensured=1
+  local ensured=0
 
   return ${ensured}
 }
@@ -292,14 +301,16 @@ _sh_rm_safe_process_items () {
   # If user has to be prompted because no device-local trash,
   # a function return value is used to indicate their preference.
   # - `ensured` legend:
-  #   - v1 prompts:
-  #     - 1: Do nothing.
+  #   - v1 prompts (first to create device trash; second to remove to home trash):
+  #     - 0: Do nothing.
+  #     - 1: Stop processing (and return nonzero).
   #     - 2: Call safe `rm` [rm -i] (b/c either
   #           (a) user created {device-root}/.trash touch-file); or
   #           (b) user rejected create-new-trash prompt and remove-to-home prompt).
   #     - 3: Prompt (again) to remove to home trash (b/c user rejected create-new-trash).
   #     - 4: All set! (Remove to device-local or user-home trash.)
-  local ensured
+  local ensured=0
+
   _sh_rm_safe_ensure_trashdir "${device_trashdir}" "${trash_device}"
   ensured=$?
 
@@ -316,6 +327,7 @@ _sh_rm_safe_process_items () {
   elif [ ${ensured} -eq 4 ]; then
     # ensured=4 means the trash directory exists; move 'deleted' files there.
     local fname=${bname}
+
     if [ -e "${device_trashdir}/.trash/${fname}" ] || \
        [ -h "${device_trashdir}/.trash/${fname}" ]; \
     then
@@ -324,6 +336,7 @@ _sh_rm_safe_process_items () {
       # generate a unique name -- so might as well replace with UUID fragment.
       fname="${bname}.$(date +%Y_%m_%d_%Hh%Mm%Ss)-$(uuidgen | head -c8)"
     fi
+
     # If fpath is a symlink and includes a trailing slash, doing a raw mv:
     #  /bin/mv "${fpath}" "${device_trashdir}/.trash/${fname}"
     # causes the response:
@@ -331,6 +344,8 @@ _sh_rm_safe_process_items () {
     #   ‘/path/to/.trash/symlink.2015_12_03_14h26m51s_179228194’: Not a directory
     /bin/mv "$(dirname -- "${fpath}")/${bname}" "${device_trashdir}/.trash/${fname}"
   fi
+
+  [ ${ensured} -ne 1 ] || return ${ensured}
 }
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
@@ -368,6 +383,7 @@ rm_safe () {
 
   if [ -z "${RM_SAFE_TRASH_HOME}" ]; then
     # We set RM_SAFE_TRASH_HOME in this file, so if here, DEV's fault.
+    # - Note we don't allow empty string, either.
     >&2 echo 'rm_safe: No $RM_SAFE_TRASH_HOME (‘’), what gives?'
 
     return 1
@@ -444,9 +460,15 @@ rm_safe () {
 
     # ***
 
+    # v1 preso option.
     local echo_boxy=true
 
+    local keep_processing=0
+
     _sh_rm_safe_process_items "${device_trashdir}" "${trash_device}"
+    keep_processing=$?
+
+    [ ${keep_processing} -ne 0 ] && return ${keep_processing}
   done
   IFS=$old_IFS
 }
