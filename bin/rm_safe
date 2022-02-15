@@ -7,6 +7,8 @@ RM_SAFE_TRASH_HOME="${RM_SAFE_TRASH_HOME:-${HOME}}"
 
 # ***
 
+RM_SAFE_TRASH_NAME=".trash"
+
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
 
 # *** <beg boilerplate `source_deps`: ------------------------------|
@@ -142,37 +144,36 @@ _sh_rm_safe_device_filepath_for_path_file () {
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
 
 _sh_rm_safe_ensure_trashdir () {
-  local device_trashdir="$1"
-  local trash_device="$2"
+  local fs_of_item="$1"
+  local item_path="$2"
+  local nitems_to_go="$3"
 
   local ensured=0
 
-  if [ -z "${device_trashdir}" ]; then
+  if [ -z "${trash_fs_mount}" ]; then
+    ensured=1  # So caller stops processing and returns error.
+
     # This branch happens if _sh_rm_safe_device_filepath_for_path does not
     # find (echo) a device path.
     # - But `df` used to determine the device path: so does this branch ever
     #   happen? This smells like a DEV issue, not the user's.
     # - Note that RM_SAFE_TRASH_HOME must be nonempty, so not here for that
     #   reason.
-    >&2 echo 'rm_safe: No $device_trashdir (‘’) determined, what gives?'
-
-    ensured=1  # So caller returns error.
-
-    return ${ensured}
-  fi
-  if [ -f "${device_trashdir}/.trash" ]; then
+    >&2 echo 'rm_safe: (DEV) ERROR: No $trash_fs_mount (‘’) determined, what gives?'
+  elif [ -f "${trash_fs_mount}/${RM_SAFE_TRASH_NAME}" ]; then
     ensured=2  # So caller invokes `rm -i`.
 
     # MAYBE: Suppress this message, or at least don't show multiple times for
     #        same ${trash_device}, i.e., or `rm *.*` will echo for every file.
-    >&2 echo "The trash is disabled on device ‘${trash_device}’"
+      >&2 echo "The trash is disabled on device ‘${fs_of_item}’"
   else
-    if [ ! -e "${device_trashdir}/.trash" ]; then
-      _sh_rm_safe_prompt_missing_trashdir_options_v1 "${device_trashdir}" "${trash_device}"
+    if [ ! -e "${trash_fs_mount}/${RM_SAFE_TRASH_NAME}" ]; then
+      _sh_rm_safe_prompt_missing_trashdir_options_v1 "${fs_of_item}"
       ensured=$?  # Will be ensured=0 or ensured=3
     fi
-    if [ -d "${device_trashdir}/.trash" ]; then
-      ensured=4
+
+    if [ -d "${trash_fs_mount}/${RM_SAFE_TRASH_NAME}" ]; then
+      ensured=4  # So caller proceeds normally (and removes item to trash).
     fi
   fi
 
@@ -182,17 +183,18 @@ _sh_rm_safe_ensure_trashdir () {
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
 
 _sh_rm_safe_prompt_missing_trashdir_options_v1 () {
-  local device_trashdir="$1"
-  local trash_device="$2"
+  local fs_of_item="$1"
 
   local ensured=0
 
+  local echo_boxy=true
+
   >&2 printf '%b\n' \
-    "No root trash found for device ‘$(fg_lavender)${trash_device}$(attr_reset)’"
+    "No root-level trash found for device ‘$(fg_lavender)${fs_of_item}$(attr_reset)’"
 
   local sudo_prefix=""
 
-  if [ "${device_trashdir}" = "/" ]; then
+  if [ "${trash_fs_mount}" = "/" ]; then
     # The file being deleted lives on the root device but the default
     # trash directory is not on the same device. This could mean the
     # user has an encrypted home directory. Rather than moving files
@@ -201,7 +203,7 @@ _sh_rm_safe_prompt_missing_trashdir_options_v1 () {
     # - Note this is not the case that the user has encrypted the
     #   entire drive. Just their home directory.
     >&2 echo
-    >&2 echo "No root trash directory ‘/.trash’ found on root device ‘/’"
+    >&2 echo "No root trash directory ‘/${RM_SAFE_TRASH_NAME}’ found on root device ‘/’"
     >&2 echo
     >&2 echo "- Possibly because your home is encrypted, good job!"
     >&2 echo
@@ -210,20 +212,20 @@ _sh_rm_safe_prompt_missing_trashdir_options_v1 () {
 
     # <Sigh> Technically this works, because `local` variables from parent
     # are visible/settable from child functions. But it still feels weird.
-    device_trashdir=''
+    trash_fs_mount=''
   fi
 
   if ${echo_boxy}; then
-    printf '%s\n' "┌──────────────────────${device_trashdir//?/─}─────────────┐"
-    printf '%s\n' "│ Create new trash at ‘${device_trashdir}/.trash’ ?   │"
-    printf '%s'   "│ Create trash? [y/N]:              ${device_trashdir//?/ }│"
+    printf '%s\n' "┌──────────────────────${trash_fs_mount//?/─}─────────────┐"
+    printf '%s\n' "│ Create new trash at ‘${trash_fs_mount}/${RM_SAFE_TRASH_NAME}’ ?   │"
+    printf '%s'   "│ Create trash? [y/N]:              ${trash_fs_mount//?/ }│"
     printf '\r'
     printf '%s'   "│ Create trash? [y/N]: "
   else
     >&2 printf '%b\n' \
-      "- HINT: To skip this ask: $(fg_lavender)touch ${device_trashdir}/.trash$(attr_reset)"
+      "- HINT: To skip this ask: $(fg_lavender)touch ${trash_fs_mount}/${RM_SAFE_TRASH_NAME}$(attr_reset)"
     printf '%b' \
-      "rm_safe: create a new trash at ‘$(fg_lavender)${device_trashdir}/.trash$(attr_reset)’? [y/N] "
+      "rm_safe: create a new trash at ‘$(fg_lavender)${trash_fs_mount}/${RM_SAFE_TRASH_NAME}$(attr_reset)’? [y/N] "
   fi
 
   read the_choice
@@ -231,17 +233,17 @@ _sh_rm_safe_prompt_missing_trashdir_options_v1 () {
   if [ "${the_choice}" != "y" ] && [ "${the_choice}" != "Y" ]; then
     ensured=3  # So caller asks to move to home-trash; or invokes `rm -i`.
     if ${echo_boxy}; then
-      >&2 echo "│ HINT: To disable this ask:        ${device_trashdir//?/ }│"
-      >&2 echo "│          touch ${device_trashdir}/.trash            │"
-      >&2 echo "└──────────────────────${device_trashdir//?/─}─────────────┘"
+      >&2 echo "│ HINT: To disable this ask:        ${trash_fs_mount//?/ }│"
+      >&2 echo "│          touch ${trash_fs_mount}/${RM_SAFE_TRASH_NAME}            │"
+      >&2 echo "└──────────────────────${trash_fs_mount//?/─}─────────────┘"
     fi
   else
     # Parent sets ensured=4 in a later [ -d ].
-    ${sudo_prefix} /bin/mkdir -p "${device_trashdir}/.trash"
+    ${sudo_prefix} /bin/mkdir -p "${trash_fs_mount}/${RM_SAFE_TRASH_NAME}"
 
     if [ -n "${sudo_prefix}" ]; then
-      sudo chgrp staff /.trash
-      sudo chmod 2775 /.trash
+      sudo chgrp staff "/${RM_SAFE_TRASH_NAME}"
+      sudo chmod 2775 "/${RM_SAFE_TRASH_NAME}"
     fi
   fi
 
@@ -251,25 +253,25 @@ _sh_rm_safe_prompt_missing_trashdir_options_v1 () {
 # ***
 
 _sh_rm_safe_prompt_missing_trashdir_options_v1_prompt_home_trash () {
-  local device_trashdir="$1"
+  local trash_fs_mount="$1"
 
   local ensured=3
 
   if ${echo_boxy}; then
-    printf '%s\n' "┌────────────────────────${device_trashdir//?/─}───────────┐"
-    printf '%s\n' "│ Move to main trash at ‘${device_trashdir}/.trash’ ? │"
-    printf '%s'   "│ Move item? [y/N]:                 ${device_trashdir//?/ }│"
+    printf '%s\n' "┌────────────────────────${trash_fs_mount//?/─}───────────┐"
+    printf '%s\n' "│ Move to main trash at ‘${trash_fs_mount}/${RM_SAFE_TRASH_NAME}’ ? │"
+    printf '%s'   "│ Move item? [y/N]:                 ${trash_fs_mount//?/ }│"
     printf '\r'
     printf '%s'   "│ Move item? [y/N]: "
   else
     printf '%b' \
-      "rm_safe: move item to trash at ‘$(fg_lavender)${device_trashdir}/.trash$(attr_reset)’? [y/N] "
+      "rm_safe: move item to trash at ‘$(fg_lavender)${trash_fs_mount}/${RM_SAFE_TRASH_NAME}$(attr_reset)’? [y/N] "
   fi
 
   read the_choice
 
   if ${echo_boxy}; then
-    >&2 echo      "└──────────────────────${device_trashdir//?/─}─────────────┘"
+    >&2 echo      "└──────────────────────${trash_fs_mount//?/─}─────────────┘"
   fi
 
   if [ "${the_choice}" != "y" ] && [ "${the_choice}" != "Y" ]; then
@@ -295,12 +297,13 @@ _sh_rm_safe_prompt_missing_trashdir_options_v2 () {
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
 
 _sh_rm_safe_process_items () {
-  local device_trashdir="$1"
-  local trash_device="$2"
+  local fs_of_item="$1"
+  local item_path="$2"
+  local nitems_to_go="$3"
 
   # If user has to be prompted because no device-local trash,
   # a function return value is used to indicate their preference.
-  # - `ensured` legend:
+  # - `ensured` legend:  #ensured_legend
   #   - v1 prompts (first to create device trash; second to remove to home trash):
   #     - 0: Do nothing.
   #     - 1: Stop processing (and return nonzero).
@@ -311,25 +314,25 @@ _sh_rm_safe_process_items () {
   #     - 4: All set! (Remove to device-local or user-home trash.)
   local ensured=0
 
-  _sh_rm_safe_ensure_trashdir "${device_trashdir}" "${trash_device}"
+  _sh_rm_safe_ensure_trashdir "${fs_of_item}" "${item_path}" "${nitems_to_go}"
   ensured=$?
 
   if [ ${ensured} -eq 3 ]; then
     # Ask if user wants to move file to home-trash instead.
-    device_trashdir="${RM_SAFE_TRASH_HOME}"
+    trash_fs_mount="${RM_SAFE_TRASH_HOME}"
 
-    _sh_rm_safe_prompt_missing_trashdir_options_v1_prompt_home_trash "${device_trashdir}"
+    _sh_rm_safe_prompt_missing_trashdir_options_v1_prompt_home_trash "${trash_fs_mount}"
   fi
 
   if [ ${ensured} -eq 2 ]; then
     # User specifically not using safety trash on this device; or for this file.
-    /bin/rm -i "${fpath}"
+    /bin/rm -i -- "${item_path}"
   elif [ ${ensured} -eq 4 ]; then
-    # ensured=4 means the trash directory exists; move 'deleted' files there.
+    # ensured=4 means the trash directory is prepared; move 'deleted' files there.
     local fname=${bname}
 
-    if [ -e "${device_trashdir}/.trash/${fname}" ] || \
-       [ -h "${device_trashdir}/.trash/${fname}" ]; \
+    if [ -e "${trash_fs_mount}/${RM_SAFE_TRASH_NAME}/${fname}" ] || \
+       [ -h "${trash_fs_mount}/${RM_SAFE_TRASH_NAME}/${fname}" ]; \
     then
       # 2020-08-26: Note that `date +%N` is not an option on macOS, prints just 'N'.
       # We could call home_fries_nanos_now for nanos, but we're adding the N to
@@ -337,12 +340,12 @@ _sh_rm_safe_process_items () {
       fname="${bname}.$(date +%Y_%m_%d_%Hh%Mm%Ss)-$(uuidgen | head -c8)"
     fi
 
-    # If fpath is a symlink and includes a trailing slash, doing a raw mv:
-    #  /bin/mv "${fpath}" "${device_trashdir}/.trash/${fname}"
+    # If item_path is a symlink and includes a trailing slash, doing a raw mv:
+    #  /bin/mv "${item_path}" "${trash_fs_mount}/${RM_SAFE_TRASH_NAME}/${fname}"
     # causes the response:
     #  /bin/mv: cannot move ‘symlink/’ to
     #   ‘/path/to/.trash/symlink.2015_12_03_14h26m51s_179228194’: Not a directory
-    /bin/mv "$(dirname -- "${fpath}")/${bname}" "${device_trashdir}/.trash/${fname}"
+    /bin/mv "$(dirname -- "${item_path}")/${bname}" "${trash_fs_mount}/${RM_SAFE_TRASH_NAME}/${fname}"
   fi
 
   [ ${ensured} -ne 1 ] || return ${ensured}
@@ -376,7 +379,7 @@ rm_safe () {
   fi
 
   if ${rm_recursive_force}; then
-    /bin/rm -rf "$@"
+    /bin/rm -rf -- "$@"
 
     return 0
   fi
@@ -391,6 +394,8 @@ rm_safe () {
 
   # ***
 
+  local trash_fs_mount=""
+
   # echo "RM_SAFE_TRASH_HOME: ${RM_SAFE_TRASH_HOME}"
   # The trash can way!
   # You can disable the trash by running
@@ -402,70 +407,72 @@ rm_safe () {
   local old_IFS=$IFS
   IFS=$'\n'
 
-  local fpath=""
-  for fpath in $*; do
-    local bname=$(basename -- "${fpath}")
+  local item_path=""
+  for item_path in $*; do
+    local bname=$(basename -- "${item_path}")
     if [ "${bname}" = '.' ] || [ "${bname}" = '..' ]; then
       continue
     fi
 
     # ***
 
-    # A little trick to make sure to use the trash path on the local device,
-    # to avoid copying files.
-    # - path_device exits nonzero if path not symlink, file, or dir.
-    local trash_device
-    trash_device=$(path_device "${RM_SAFE_TRASH_HOME}")
-    if [ $? -ne 0 ] || [ "${trash_device}" = "" ]; then
+    # Resolve device for both the main trash and the file being remove, so we
+    # can use the trash path on the local device, to avoid copying files (to
+    # avoid `mv foo ~/.trash` when ~/.trash is a separate logical device,
+    # which would effectively become `cp foo ~/.trash && rm foo`).
+
+    # Note that `path_device` exits nonzero if path not symlink, file, or dir.
+
+    local fs_of_main_trash
+    fs_of_main_trash=$(path_device "${RM_SAFE_TRASH_HOME}")
+    if [ $? -ne 0 ] || [ "${fs_of_main_trash}" = "" ]; then
       >&2 echo "rm_safe: No device for supposed trash dir. ‘${RM_SAFE_TRASH_HOME}’"
 
       return 1
     fi
-    _trace "trash_device=${trash_device}"  # E.g., "/dev/sda2"
+    _trace "fs_of_main_trash=${fs_of_main_trash}"  # E.g., "/dev/sda2"
 
     # ***
 
-    local fpath_device
-    fpath_device="$(path_device "${fpath}")"
-    if [ $? -ne 0 ] || [ "${fpath_device}" == "" ]; then
-      if [ ! -d "${fpath}" ] && [ ! -f "${fpath}" ] && [ ! -h "${fpath}" ]; then
-        >&2 echo "rm_safe: Cannot remove ‘${fpath}’: No such file or directory"
+    local fs_of_item
+    fs_of_item="$(path_device "${item_path}")"
+    if [ $? -ne 0 ] || [ "${fs_of_item}" == "" ]; then
+      if [ ! -d "${item_path}" ] &&
+         [ ! -f "${item_path}" ] &&
+         [ ! -h "${item_path}" ]; then
+        >&2 echo "rm_safe: Cannot remove ‘${item_path}’: No such file or directory"
       else
-        >&2 echo "rm_safe: ERROR: Could not detect device for item ‘${fpath}’"
+        >&2 echo "rm_safe: ERROR: Could not detect device for item ‘${item_path}’"
       fi
 
       return 1
     fi
-    _trace "fpath_device=${fpath_device}"  # E.g., "/dev/sdb1"
+    _trace "fs_of_item=${fs_of_item}"  # E.g., "/dev/sdb1"
 
     # ***
 
-    local device_trashdir=""
-    if [ "${trash_device}" = "${fpath_device}" ]; then
-      # Indicates that file being remove resides on same device and user-home,
-      # so we can remove to the user-home trash.
-      #
-      # MAYBE: Update this fcn. to support specific trash
-      # directories on each device. For now you can specify
-      # one specific dir for one drive (generally /home/$LOGNAME/.trash)
-      # and then all other drives it's assumed to be at, e.g.,
-      # /media/XXX/.trash; logical mount root, e.g., /path/to/encfs/.trash.
-      device_trashdir="${RM_SAFE_TRASH_HOME}"
-    else
-      device_trashdir=$(_sh_rm_safe_device_filepath_for_path "${fpath}")
-      trash_device=${fpath_device}
-      _trace "trash_device=${trash_device}"  # E.g., "/dev/sda2"
+      trash_fs_mount=""
+
+      if [ "${fs_of_main_trash}" = "${fs_of_item}" ]; then
+        # Indicates that file being remove resides on same device and user-home,
+        # so we can remove to the user-home trash.
+        #
+        # MAYBE: Update this fcn. to support specific trash
+        # directories on each device. For now you can specify
+        # one specific dir for one drive (generally /home/$LOGNAME/.trash)
+        # and then all other drives it's assumed to be at, e.g.,
+        # /media/XXX/.trash; logical mount root, e.g., /path/to/encfs/.trash.
+        trash_fs_mount="${RM_SAFE_TRASH_HOME}"
+      else
+        trash_fs_mount=$(_sh_rm_safe_device_filepath_for_path "${item_path}")
+      _trace "trash_fs_mount=${trash_fs_mount}"  # E.g., "/dev/sdb1"
     fi
-    _trace "device_trashdir=${device_trashdir}"  # E.g., "/dev/sdb1"
 
     # ***
-
-    # v1 preso option.
-    local echo_boxy=true
 
     local keep_processing=0
 
-    _sh_rm_safe_process_items "${device_trashdir}" "${trash_device}"
+    _sh_rm_safe_process_items "${fs_of_item}" "${item_path}" "${nitems_to_go}"
     keep_processing=$?
 
     [ ${keep_processing} -ne 0 ] && return ${keep_processing}
