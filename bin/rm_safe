@@ -286,6 +286,16 @@ _sh_rm_safe_process_items () {
   local device_trashdir="$1"
   local trash_device="$2"
 
+  # If user has to be prompted because no device-local trash,
+  # a function return value is used to indicate their preference.
+  # - `ensured` legend:
+  #   - v1 prompts:
+  #     - 1: Do nothing.
+  #     - 2: Call safe `rm` [rm -i] (b/c either
+  #           (a) user created {device-root}/.trash touch-file); or
+  #           (b) user rejected create-new-trash prompt and remove-to-home prompt).
+  #     - 3: Prompt (again) to remove to home trash (b/c user rejected create-new-trash).
+  #     - 4: All set! (Remove to device-local or user-home trash.)
   local ensured
   _sh_rm_safe_ensure_trashdir "${device_trashdir}" "${trash_device}"
   ensured=$?
