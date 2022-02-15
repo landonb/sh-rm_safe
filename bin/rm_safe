@@ -189,11 +189,14 @@ _sh_rm_safe_prompt_missing_trashdir_options_v1 () {
     # user has an encrypted home directory. Rather than moving files
     # to the encrypted space, use an unencrypted trash location, but
     # make the user do it.
+    # - Note this is not the case that the user has encrypted the
+    #   entire drive. Just their home directory.
     >&2 echo
     >&2 echo "No root trash directory ‘/.trash’ found on root device ‘/’"
     >&2 echo
     >&2 echo "- Possibly because your home is encrypted, good job!"
     >&2 echo
+
     sudo_prefix="sudo"
 
     # <Sigh> Technically this works, because `local` variables from parent
@@ -423,6 +426,9 @@ rm_safe () {
 
     local device_trashdir=""
     if [ "${trash_device}" = "${fpath_device}" ]; then
+      # Indicates that file being remove resides on same device and user-home,
+      # so we can remove to the user-home trash.
+      #
       # MAYBE: Update this fcn. to support specific trash
       # directories on each device. For now you can specify
       # one specific dir for one drive (generally /home/$LOGNAME/.trash)
