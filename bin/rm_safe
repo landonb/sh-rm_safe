@@ -367,8 +367,8 @@ _sh_rm_safe_prompt_missing_trashdir_print_header () {
   # SYNC_ME: There are 66 spaces between "‘${item_path}’" and "│" if item_path=''.
   let "ftype_nspaces = 66 - ${#item_path}"
   local ftype_postfix=""
-  # Require minimum 1 space so 66-character path name won't look like it ends with "│".
-  if [ ${ftype_nspaces} -gt 1 ]; then
+  # Only print "│"  if we're padding, otherwise let path extend past right pipe boundary.
+  if [ ${ftype_nspaces} -gt 0 ]; then
     ftype_postfix="$(eval "printf ' %.0s' {1..${ftype_nspaces}}")│"
     # CRUMB: Same outcome as another repeat character trick:
     #  let "ftype_nspaces = 66 - ${#item_path} + 1"  # Add one for '│'
@@ -425,8 +425,8 @@ _sh_rm_safe_prompt_missing_trashdir_print_options () {
   #     │          ‘’                                                           │
   let "device_trash_nspaces = 59 - ${#device_trash}"
   local device_trash_postfis=""
-  # Require minimum 1 space so 66-character path name won't look like it ends with "│".
-  if [ ${device_trash_nspaces} -gt 1 ]; then
+  # Only print "│"  if we're padding, otherwise let path extend past right pipe boundary.
+  if [ ${device_trash_nspaces} -gt 0 ]; then
     device_trash_postfis="$(eval "printf ' %.0s' {1..${device_trash_nspaces}}")│"
     # CRUMB: Same outcome as another repeat character trick:
     #  let "device_trash_nspaces = 66 - ${#device_trash} + 1"  # Add one for '│'
