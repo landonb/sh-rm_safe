@@ -87,8 +87,10 @@ _sh_rm_safe_device_filepath_for_path () {
 
 _sh_rm_safe_device_filepath_for_path_file () {
   local file="$1"
+
   local device_path=''
   local usage_report=''
+
   # NOTE: We could use awk to get the second line of output, e.g.,
   #   usage_report=$(/bin/df -T "$1")
   #   device_path=$(echo "${usage_report}" | awk 'NR == 2 {for(i=7;i<=NF;++i) print $i}')
@@ -131,7 +133,9 @@ _sh_rm_safe_device_filepath_for_path_file () {
       | awk 'NR == 2 {print $NF}' \
     )"
   fi
+
   _trace "device_path=${device_path}"
+
   echo "${device_path}"
 }
 
@@ -191,6 +195,9 @@ _sh_rm_safe_prompt_missing_trashdir_options_v1 () {
     >&2 echo "- Possibly because your home is encrypted, good job!"
     >&2 echo
     sudo_prefix="sudo"
+
+    # <Sigh> Technically this works, because `local` variables from parent
+    # are visible/settable from child functions. But it still feels weird.
     device_trashdir=''
   fi
 
@@ -219,6 +226,7 @@ _sh_rm_safe_prompt_missing_trashdir_options_v1 () {
   else
     # Parent sets ensured=4 in a later [ -d ].
     ${sudo_prefix} /bin/mkdir -p "${device_trashdir}/.trash"
+
     if [ -n "${sudo_prefix}" ]; then
       sudo chgrp staff /.trash
       sudo chmod 2775 /.trash
@@ -392,14 +400,18 @@ rm_safe () {
       # directories on each device. For now you can specify
       # one specific dir for one drive (generally /home/$LOGNAME/.trash)
       # and then all other drives it's assumed to be at, e.g.,
-      # /media/XXX/.trash.
+      # /media/XXX/.trash; logical mount root, e.g., /path/to/encfs/.trash.
       device_trashdir="${RM_SAFE_TRASH_HOME}"
     else
       device_trashdir=$(_sh_rm_safe_device_filepath_for_path "${fpath}")
       trash_device=${fpath_device}
+      _trace "trash_device=${trash_device}"  # E.g., "/dev/sda2"
     fi
+    _trace "device_trashdir=${device_trashdir}"  # E.g., "/dev/sdb1"
 
     # ***
+
+    local echo_boxy=true
 
     _sh_rm_safe_process_items "${device_trashdir}" "${trash_device}"
   done
