@@ -163,9 +163,11 @@ _sh_rm_safe_ensure_trashdir () {
   elif [ -f "${trash_fs_mount}/${RM_SAFE_TRASH_NAME}" ]; then
     ensured=2  # So caller invokes `rm -i`.
 
-    # MAYBE: Suppress this message, or at least don't show multiple times for
-    #        same ${trash_device}, i.e., or `rm *.*` will echo for every file.
+    if [ -z "${previously_printed_trash_disabled_notice[${fs_of_item}]}" ]; then
       >&2 echo "The trash is disabled on device ‘${fs_of_item}’"
+
+      previously_printed_trash_disabled_notice[${fs_of_item}]="1"
+    fi
   else
     if [ ! -e "${trash_fs_mount}/${RM_SAFE_TRASH_NAME}" ]; then
       _sh_rm_safe_prompt_missing_trashdir_options_v1 "${fs_of_item}"
@@ -395,6 +397,8 @@ rm_safe () {
   # ***
 
   local trash_fs_mount=""
+
+  declare -A previously_printed_trash_disabled_notice
 
   # echo "RM_SAFE_TRASH_HOME: ${RM_SAFE_TRASH_HOME}"
   # The trash can way!
