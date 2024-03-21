@@ -58,7 +58,7 @@ to really delete a file!)
 
 As an alternative, if you're serious about really deleting a file
 or a directory, run `rmrm` (and harness the destructive power of
-`/bin/rm -rf -- "$@"`).
+`command rm -rf -- "$@"`).
 
 ## Installation
 
