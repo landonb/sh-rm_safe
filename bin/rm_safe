@@ -570,6 +570,7 @@ _sh_rm_safe_process_items () {
   local fs_of_item="$1"
   local item_path="$2"
   local nitems_to_go="$3"
+  local arg_verbose="$4"
 
   # If user has to be prompted because no device-local trash,
   # a function return value is used to indicate their preference.
@@ -603,9 +604,9 @@ _sh_rm_safe_process_items () {
 
   if [ ${ensured} -eq 2 ]; then
     # User specifically not using safety trash on this device; or for this file.
-    command rm -i -- "${item_path}"
+    command rm -i ${arg_verbose} -- "${item_path}"
   elif [ ${ensured} -eq 22 ] || [ ${ensured} -eq 32 ]; then
-    command rm -rf -- "${item_path}"
+    command rm -rf ${arg_verbose} -- "${item_path}"
 
     # We already printed a prompt. Might as well print a confirmation?
     echo
@@ -626,11 +627,13 @@ _sh_rm_safe_process_items () {
     fi
 
     # If item_path is a symlink and includes a trailing slash, doing a raw mv:
-    #  command mv "${item_path}" "${trash_fs_mount}/${RM_SAFE_TRASH_NAME}/${fname}"
+    #  command mv ${arg_verbose} -- "${item_path}" "${trash_fs_mount}/${RM_SAFE_TRASH_NAME}/${fname}"
     # causes a response like:
     #   mv: cannot move ‘symlink/’ to
     #    ‘/path/to/.trash/symlink.2015_12_03_14h26m51s_179228194’: Not a directory
-    command mv -- "$(dirname -- "${item_path}")/${bname}" "${trash_fs_mount}/${RM_SAFE_TRASH_NAME}/${fname}"
+    command mv ${arg_verbose} -- \
+      "$(dirname -- "${item_path}")/${bname}" \
+      "${trash_fs_mount}/${RM_SAFE_TRASH_NAME}/${fname}"
   fi
 
   [ ${ensured} -ne 1 ] || return ${ensured}
@@ -641,12 +644,14 @@ _sh_rm_safe_process_items () {
 # Side-effect: Sets the following vars from the caller:
 #
 #   RM_RECURSIVE_FORCE
+#   ARG_VERBOSE
 #   N_PATH_ARGS
 
 parse_args () {
   local arg_force=false
   local arg_recursive=false
   RM_RECURSIVE_FORCE=false
+  ARG_VERBOSE=""
   N_PATH_ARGS=0
 
   local end_of_options=false
@@ -704,6 +709,7 @@ parse_args () {
           # "explain what is being done"
           # rm_safe doesn't currently have lots to say, except
           # its wordy menu prompt when there's do device trash
+          ARG_VERBOSE="-v"
           ;;
         --help)
           # "display this help and exit"
@@ -825,6 +831,7 @@ is_a_rm_arg () {
 # FIXME/2019-12-22 23:06: Split this long fcn.
 rm_safe () {
   local RM_RECURSIVE_FORCE=false
+  local ARG_VERBOSE=""
   local N_PATH_ARGS=0
 
   parse_args "$@" || return 1
@@ -832,7 +839,7 @@ rm_safe () {
   # ***
 
   if ${RM_RECURSIVE_FORCE}; then
-    command rm -rf -- "$@"
+    command rm -rf ${ARG_VERBOSE} -- "$@"
 
     return 0
   fi
@@ -884,7 +891,7 @@ rm_safe () {
     # ***
 
     if ${RM_RECURSIVE_FORCE}; then
-      command rm -rf -- "${item_path}"
+      command rm -rf ${ARG_VERBOSE} -- "${item_path}"
 
       >&2 echo "rm_safe: Removed ‘${item_path}’"
 
@@ -951,7 +958,7 @@ rm_safe () {
 
     local keep_processing=0
 
-    _sh_rm_safe_process_items "${fs_of_item}" "${item_path}" "${nitems_to_go}"
+    _sh_rm_safe_process_items "${fs_of_item}" "${item_path}" "${nitems_to_go}" "${ARG_VERBOSE}"
     keep_processing=$?
 
     [ ${keep_processing} -ne 0 ] && return ${keep_processing}
