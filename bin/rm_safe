@@ -957,24 +957,10 @@ rm_safe_run () {
     # ***
 
     local fs_of_main_trash
-
-    # ***
     fs_of_main_trash="$(print_fs_of_main_trash)" || return 1
 
     local fs_of_item
-    fs_of_item="$(path_device "${item_path}")"
-    if [ $? -ne 0 ] || [ "${fs_of_item}" == "" ]; then
-      if [ ! -d "${item_path}" ] &&
-         [ ! -f "${item_path}" ] &&
-         [ ! -h "${item_path}" ]; then
-        >&2 echo "rm_safe: Cannot remove ‘${item_path}’: No such file or directory"
-      else
-        >&2 echo "rm_safe: ERROR: Could not detect device for item ‘${item_path}’"
-      fi
-
-      return 1
-    fi
-    _trace "fs_of_item=${fs_of_item}"  # E.g., "/dev/sdb1"
+    fs_of_item="$(print_fs_of_item "${item_path}")" || return 1
 
     # ***
 
@@ -1032,6 +1018,32 @@ print_fs_of_main_trash () {
   _trace "fs_of_main_trash=${fs_of_main_trash}"  # E.g., "/dev/sda2"
 
   printf "%s" "${fs_of_main_trash}"
+}
+
+# ***
+
+print_fs_of_item () {
+  local item_path="$1"
+
+  local fs_of_item
+
+  fs_of_item="$(path_device "${item_path}")"
+
+  if [ $? -ne 0 ] || [ "${fs_of_item}" == "" ]; then
+    if [ ! -d "${item_path}" ] &&
+       [ ! -f "${item_path}" ] &&
+       [ ! -h "${item_path}" ]; then
+      >&2 echo "rm_safe: Cannot remove ‘${item_path}’: No such file or directory"
+    else
+      >&2 echo "rm_safe: ERROR: Could not detect device for item ‘${item_path}’"
+    fi
+
+    return 1
+  fi
+
+  _trace "fs_of_item=${fs_of_item}"  # E.g., "/dev/sdb1"
+
+  printf "%s" "${fs_of_item}"
 }
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
