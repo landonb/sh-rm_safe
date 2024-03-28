@@ -647,8 +647,6 @@ rm_safe () {
   # ***
 
   if [ "-rf" = "${1}" ]; then
-    >&2 echo "rm_safe: ‘command rm -rf’, you got it!"
-
     shift
 
     rm_recursive_force=true
