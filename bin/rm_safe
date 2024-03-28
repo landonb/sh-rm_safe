@@ -970,7 +970,9 @@ rm_safe_run () {
     _sh_rm_safe_process_items "${fs_of_item}" "${item_path}" "${nitems_to_go}" "${ARG_VERBOSE}"
     keep_processing=$?
 
-    [ ${keep_processing} -ne 0 ] && return ${keep_processing}
+    if [ ${keep_processing} -ne 0 ]; then
+      return ${keep_processing}
+    fi
   done
 }
 
