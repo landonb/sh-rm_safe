@@ -949,8 +949,6 @@ rm_safe_run () {
     if ${ARG_RECURSIVE_FORCE}; then
       command rm -rf ${ARG_VERBOSE} -- "${item_path}"
 
-      >&2 echo "rm_safe: Removed ‘${item_path}’"
-
       continue
     fi
 
