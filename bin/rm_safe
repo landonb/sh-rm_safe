@@ -901,6 +901,12 @@ rm_safe () {
 
   # ***
 
+  rm_safe_run "$@"
+}
+
+# ***
+
+rm_safe_run () {
   local trash_fs_mount=""
   local trash_fs_mount_locked=false
 
