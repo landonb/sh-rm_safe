@@ -690,18 +690,12 @@ rm_safe () {
   # The trash can way!
   # You can disable the trash by running
   #   command rm -rf ~/.trash && touch ~/.trash
-  # You can make the trash with rmtrash or mkdir ~/.trash,
-  #   or run the command and you'll be prompted.
-  # EXPLAIN/2019-12-22: (lb): Would $@ instead of $* allow us to avoid IFS?
-  # MAYBE/2021-02-20: Rather than use old_IFS, would `local IFS=$'\n'` work?
-  local old_IFS=$IFS
-  IFS=$'\n'
 
   local npath=0
   local npaths=$#
 
   local item_path=""
-  for item_path in $*; do
+  for item_path in "$@"; do
     let "npath += 1"
     let "nitems_to_go = npaths - npath"
 
@@ -785,7 +779,6 @@ rm_safe () {
 
     [ ${keep_processing} -ne 0 ] && return ${keep_processing}
   done
-  IFS=$old_IFS
 }
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
