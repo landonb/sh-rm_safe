@@ -150,7 +150,7 @@ _sh_rm_safe_ensure_trashdir () {
 
   local ensured=0
 
-  if [ -z "${trash_fs_mount}" ]; then
+  if [ -z "${TRASH_FS_MOUNT}" ]; then
     ensured=1  # So caller stops processing and returns error.
 
     # This branch happens if _sh_rm_safe_device_filepath_for_path does not
@@ -159,8 +159,8 @@ _sh_rm_safe_ensure_trashdir () {
     #   happen? This smells like a DEV issue, not the user's.
     # - Note that RM_SAFE_TRASH_HOME must be nonempty, so not here for that
     #   reason.
-    >&2 echo 'rm_safe: (DEV) ERROR: No $trash_fs_mount (‘’) determined, what gives?'
-  elif [ -f "${trash_fs_mount}/${RM_SAFE_TRASH_NAME}" ]; then
+    >&2 echo 'rm_safe: (DEV) ERROR: No $TRASH_FS_MOUNT (‘’) determined, what gives?'
+  elif [ -f "${TRASH_FS_MOUNT}/${RM_SAFE_TRASH_NAME}" ]; then
     ensured=2  # So caller invokes `rm -i`.
 
     # Similar too Bash v4+ associate array:
@@ -173,7 +173,7 @@ _sh_rm_safe_ensure_trashdir () {
       eval "previously_printed_trash_disabled_notice${fs_of_item}='1'"
     fi
   else
-    if [ ! -e "${trash_fs_mount}/${RM_SAFE_TRASH_NAME}" ]; then
+    if [ ! -e "${TRASH_FS_MOUNT}/${RM_SAFE_TRASH_NAME}" ]; then
       # 2022-02-14: Choose your poison:
       #  _sh_rm_safe_prompt_missing_trashdir_options_v1 "${fs_of_item}"
       #  ensured=$?  # Will be ensured=0 or ensured=3
@@ -182,7 +182,7 @@ _sh_rm_safe_ensure_trashdir () {
       ensured=$?  # For return values, see #ensured_legend
     fi
 
-    if [ -d "${trash_fs_mount}/${RM_SAFE_TRASH_NAME}" ]; then
+    if [ -d "${TRASH_FS_MOUNT}/${RM_SAFE_TRASH_NAME}" ]; then
       ensured=4  # So caller proceeds normally (and removes item to trash).
     fi
   fi
@@ -205,7 +205,7 @@ _sh_rm_safe_prompt_missing_trashdir_options_v1 () {
 
   local sudo_prefix=""
 
-  if [ "${trash_fs_mount}" = "/" ]; then
+  if [ "${TRASH_FS_MOUNT}" = "/" ]; then
     # The file being deleted lives on the root device but the default
     # trash directory is not on the same device. This could mean the
     # user has an encrypted home directory. Rather than moving files
@@ -223,20 +223,20 @@ _sh_rm_safe_prompt_missing_trashdir_options_v1 () {
 
     # <Sigh> Technically this works, because `local` variables from parent
     # are visible/settable from child functions. But it still feels weird.
-    trash_fs_mount=''
+    TRASH_FS_MOUNT=''
   fi
 
   if ${echo_boxy}; then
-    printf '%s\n' "┌──────────────────────${trash_fs_mount//?/─}─────────────┐"
-    printf '%s\n' "│ Create new trash at ‘${trash_fs_mount}/${RM_SAFE_TRASH_NAME}’ ?   │"
-    printf '%s'   "│ Create trash? [y/N]:              ${trash_fs_mount//?/ }│"
+    printf '%s\n' "┌──────────────────────${TRASH_FS_MOUNT//?/─}─────────────┐"
+    printf '%s\n' "│ Create new trash at ‘${TRASH_FS_MOUNT}/${RM_SAFE_TRASH_NAME}’ ?   │"
+    printf '%s'   "│ Create trash? [y/N]:              ${TRASH_FS_MOUNT//?/ }│"
     printf '\r'
     printf '%s'   "│ Create trash? [y/N]: "
   else
     >&2 printf '%b\n' \
-      "- HINT: To skip this ask: $(fg_lavender)touch ${trash_fs_mount}/${RM_SAFE_TRASH_NAME}$(attr_reset)"
+      "- HINT: To skip this ask: $(fg_lavender)touch ${TRASH_FS_MOUNT}/${RM_SAFE_TRASH_NAME}$(attr_reset)"
     printf '%b' \
-      "rm_safe: create a new trash at ‘$(fg_lavender)${trash_fs_mount}/${RM_SAFE_TRASH_NAME}$(attr_reset)’? [y/N] "
+      "rm_safe: create a new trash at ‘$(fg_lavender)${TRASH_FS_MOUNT}/${RM_SAFE_TRASH_NAME}$(attr_reset)’? [y/N] "
   fi
 
   read the_choice
@@ -244,13 +244,13 @@ _sh_rm_safe_prompt_missing_trashdir_options_v1 () {
   if [ "${the_choice}" != "y" ] && [ "${the_choice}" != "Y" ]; then
     ensured=3  # So caller asks to move to home-trash; or invokes `rm -i`.
     if ${echo_boxy}; then
-      >&2 echo "│ HINT: To disable this ask:        ${trash_fs_mount//?/ }│"
-      >&2 echo "│          touch ${trash_fs_mount}/${RM_SAFE_TRASH_NAME}            │"
-      >&2 echo "└──────────────────────${trash_fs_mount//?/─}─────────────┘"
+      >&2 echo "│ HINT: To disable this ask:        ${TRASH_FS_MOUNT//?/ }│"
+      >&2 echo "│          touch ${TRASH_FS_MOUNT}/${RM_SAFE_TRASH_NAME}            │"
+      >&2 echo "└──────────────────────${TRASH_FS_MOUNT//?/─}─────────────┘"
     fi
   else
     # Parent sets ensured=4 in a later [ -d ].
-    ${sudo_prefix} mkdir -p "${trash_fs_mount}/${RM_SAFE_TRASH_NAME}"
+    ${sudo_prefix} mkdir -p "${TRASH_FS_MOUNT}/${RM_SAFE_TRASH_NAME}"
 
     if [ -n "${sudo_prefix}" ]; then
       sudo chgrp staff "/${RM_SAFE_TRASH_NAME}"
@@ -304,10 +304,10 @@ _sh_rm_safe_prompt_missing_trashdir_options_v2 () {
   # For return values, see #ensured_legend
   local ensured=0
 
-  _sh_rm_safe_verify_non_root_trash_fs_mount "${trash_fs_mount}" ${item_path} ||
+  _sh_rm_safe_verify_non_root_trash_fs_mount "${TRASH_FS_MOUNT}" ${item_path} ||
     return 1  # ensured=1 stops processing.
 
-  # At this point, "${trash_fs_mount}/.trash" does not exist, and is not `/.trash`.
+  # At this point, "${TRASH_FS_MOUNT}/.trash" does not exist, and is not `/.trash`.
   # - So ask user what they want to do.
 
   ! ${previously_printed_missing_trashdir_prompt} || echo
@@ -316,7 +316,7 @@ _sh_rm_safe_prompt_missing_trashdir_options_v2 () {
 
   _sh_rm_safe_prompt_missing_trashdir_print_header "${item_path}"
 
-  _sh_rm_safe_prompt_missing_trashdir_print_options "${trash_fs_mount}" "${nitems_to_go}"
+  _sh_rm_safe_prompt_missing_trashdir_print_options "${TRASH_FS_MOUNT}" "${nitems_to_go}"
 
   _sh_rm_safe_prompt_missing_trashdir_read_choice_and_react
   ensured=$?
@@ -492,25 +492,25 @@ ${option_obliterate_all_items}
 _sh_rm_safe_prompt_missing_trashdir_read_choice_and_react () {
   read the_choice
 
-  local device_trash="${trash_fs_mount}/${RM_SAFE_TRASH_NAME}"
+  local device_trash="${TRASH_FS_MOUNT}/${RM_SAFE_TRASH_NAME}"
 
   # For return values, see #ensured_legend
   if [ "${the_choice}" = "d" ]; then
     mkdir -p "${device_trash}"
 
-    return 4  # All set! Tell caller to use ${trash_fs_mount}/.trash.
+    return 4  # All set! Tell caller to use ${TRASH_FS_MOUNT}/.trash.
   fi
 
   if [ "${the_choice}" = "m" ] || [ "${the_choice}" = "" ]; then
     # <Sigh> Technically this works, because `local` variables from parent
     # are visible/settable from child functions. But it still feels weird.
-    trash_fs_mount="${RM_SAFE_TRASH_HOME}"
+    TRASH_FS_MOUNT="${RM_SAFE_TRASH_HOME}"
 
-    return 4  # All set! Tell caller to use ${trash_fs_mount}/.trash.
+    return 4  # All set! Tell caller to use ${TRASH_FS_MOUNT}/.trash.
   fi
 
   if [ "${the_choice}" = "a" ]; then
-    trash_fs_mount="${RM_SAFE_TRASH_HOME}"
+    TRASH_FS_MOUNT="${RM_SAFE_TRASH_HOME}"
     TRASH_FS_MOUNT_LOCKED=true
 
     return 4  # All set!
@@ -588,7 +588,7 @@ _sh_rm_safe_process_items () {
   #     -  2: Call safe `rm` [rm -i ] on curr item (b/c user chose <r>).
   #     - 22: Call mean `rm` [rm -rf] on curr item (b/c user chose <R>).
   #     - 32: Call mean `rm` [rm -rf] on all items (b/c user chose <Ra>).
-  #     -  4: All set! Remove curr item to path specified by ${trash_fs_mount}
+  #     -  4: All set! Remove curr item to path specified by ${TRASH_FS_MOUNT}
   #             (which is either device-local or user-home trash).
   local ensured=0
 
@@ -597,9 +597,9 @@ _sh_rm_safe_process_items () {
 
   if [ ${ensured} -eq 3 ]; then
     # Ask if user wants to move file to home-trash instead.
-    trash_fs_mount="${RM_SAFE_TRASH_HOME}"
+    TRASH_FS_MOUNT="${RM_SAFE_TRASH_HOME}"
 
-    _sh_rm_safe_prompt_missing_trashdir_options_v1_prompt_home_trash "${trash_fs_mount}"
+    _sh_rm_safe_prompt_missing_trashdir_options_v1_prompt_home_trash "${TRASH_FS_MOUNT}"
   fi
 
   if [ ${ensured} -eq 2 ]; then
@@ -619,21 +619,21 @@ _sh_rm_safe_process_items () {
     # ensured=4 means the trash directory is prepared; move 'deleted' files there.
     local fname=${bname}
 
-    if [ -e "${trash_fs_mount}/${RM_SAFE_TRASH_NAME}/${fname}" ] || \
-       [ -h "${trash_fs_mount}/${RM_SAFE_TRASH_NAME}/${fname}" ]; \
+    if [ -e "${TRASH_FS_MOUNT}/${RM_SAFE_TRASH_NAME}/${fname}" ] || \
+       [ -h "${TRASH_FS_MOUNT}/${RM_SAFE_TRASH_NAME}/${fname}" ]; \
     then
       # Add a UUID fragment to generate a unique name.
       fname="${bname}.$(date +%Y_%m_%d_%Hh%Mm%Ss)-$(uuidgen | head -c8)"
     fi
 
     # If item_path is a symlink and includes a trailing slash, doing a raw mv:
-    #  command mv ${arg_verbose} -- "${item_path}" "${trash_fs_mount}/${RM_SAFE_TRASH_NAME}/${fname}"
+    #  command mv ${arg_verbose} -- "${item_path}" "${TRASH_FS_MOUNT}/${RM_SAFE_TRASH_NAME}/${fname}"
     # causes a response like:
     #   mv: cannot move ‘symlink/’ to
     #    ‘/path/to/.trash/symlink.2015_12_03_14h26m51s_179228194’: Not a directory
     command mv ${arg_verbose} -- \
       "$(dirname -- "${item_path}")/${bname}" \
-      "${trash_fs_mount}/${RM_SAFE_TRASH_NAME}/${fname}"
+      "${TRASH_FS_MOUNT}/${RM_SAFE_TRASH_NAME}/${fname}"
   fi
 
   [ ${ensured} -ne 1 ] || return ${ensured}
@@ -907,7 +907,7 @@ rm_safe () {
 # ***
 
 rm_safe_run () {
-  local trash_fs_mount=""
+  local TRASH_FS_MOUNT=""
   local TRASH_FS_MOUNT_LOCKED=false
 
   local previously_printed_missing_trashdir_prompt=false
@@ -1045,12 +1045,12 @@ set_trash_fs_mount () {
     # one specific dir for one drive (generally /home/$LOGNAME/.trash)
     # and then all other drives it's assumed to be at, e.g.,
     # /media/XXX/.trash; logical mount root, e.g., /path/to/encfs/.trash.
-    trash_fs_mount="${RM_SAFE_TRASH_HOME}"
+    TRASH_FS_MOUNT="${RM_SAFE_TRASH_HOME}"
   else
-    trash_fs_mount=$(_sh_rm_safe_device_filepath_for_path "${item_path}")
+    TRASH_FS_MOUNT=$(_sh_rm_safe_device_filepath_for_path "${item_path}")
   fi
 
-  _trace "trash_fs_mount=${trash_fs_mount}"  # E.g., "/dev/sdb1"
+  _trace "TRASH_FS_MOUNT=${TRASH_FS_MOUNT}"  # E.g., "/dev/sdb1"
 }
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
