@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# vim:tw=0:ts=2:sw=2:et:norl:ft=sh
+# Project: https://github.com/landonb/sh-rm_safe#🗑
+# License: MIT
+
+# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
+
+function mv_safe () {
+  local mv_force=false
+
+  for arg in "$@"; do
+    case "${arg}" in
+      --)
+        # End of options.
+        break
+        ;;
+      -f|--force)
+        mv_force=true
+        ;;
+    esac
+  done
+
+  if ${mv_force}; then
+    command mv "$@"
+  else
+    command mv -i "$@"
+  fi
+}
+
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ #
+
+if [ "$0" = "${BASH_SOURCE[0]}" ]; then
+  mv_safe "$@"
+fi
+

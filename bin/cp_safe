@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# vim:tw=0:ts=2:sw=2:et:norl:ft=sh
+# Project: https://github.com/landonb/sh-rm_safe#🗑
+# License: MIT
+
+# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
+
+function cp_safe () {
+  local cp_force=false
+
+  for arg in "$@"; do
+    case "${arg}" in
+      --)
+        # End of options.
+        break
+        ;;
+      -f|--force)
+        cp_force=true
+        ;;
+    esac
+  done
+
+  if ${cp_force}; then
+    command cp "$@"
+  else
+    command cp -i "$@"
+  fi
+}
+
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ #
+
+if [ "$0" = "${BASH_SOURCE[0]}" ]; then
+  cp_safe "$@"
+fi
+
