@@ -866,7 +866,6 @@ EOF
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
 
-# FIXME/2019-12-22 23:06: Split this long fcn.
 rm_safe () {
   local ARG_FORCE=false
   local ARG_SAFE=false
@@ -906,20 +905,21 @@ rm_safe () {
 
 # ***
 
+# TOO_BASHY: We'll use eval flattened variable tricks instead:
+#  declare -A previously_printed_trash_disabled_notice
+
+# echo "RM_SAFE_TRASH_HOME: ${RM_SAFE_TRASH_HOME}"
+# The trash can way!
+# You can disable the trash by running
+#   command rm -rf ~/.trash && touch ~/.trash
+# You can make the trash with `rmtrash` or `mkdir ~/.trash`,
+# or run the `rm_safe` command and you'll be prompted.
+
 rm_safe_run () {
   local TRASH_FS_MOUNT=""
   local TRASH_FS_MOUNT_LOCKED=false
 
   local previously_printed_missing_trashdir_prompt=false
-  # TOO_BASHY: We'll use eval flattened variable tricks instead:
-  #  declare -A previously_printed_trash_disabled_notice
-
-  # echo "RM_SAFE_TRASH_HOME: ${RM_SAFE_TRASH_HOME}"
-  # The trash can way!
-  # You can disable the trash by running
-  #   command rm -rf ~/.trash && touch ~/.trash
-  # You can make the trash with `rmtrash` or `mkdir ~/.trash`,
-  # or run the `rm_safe` command and you'll be prompted.
 
   local npath=0
   local END_OF_OPTIONS=false
