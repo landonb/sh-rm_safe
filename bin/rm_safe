@@ -922,11 +922,13 @@ rm_safe_run () {
   local PREVIOUSLY_PRINTED_MISSING_TRASHDIR_PROMPT=false
 
   local npath=0
+  local nitems_to_go=0
   local END_OF_OPTIONS=false
 
   local ARG_RECURSIVE_FORCE=false
 
   local item_path=""
+
   for item_path in "$@"; do
     # We already processed args, so skip if seen again.
     if is_a_rm_arg "${item_path}"; then
