@@ -956,23 +956,10 @@ rm_safe_run () {
 
     # ***
 
-    # Resolve device for both the main trash and the file being remove, so we
-    # can use the trash path on the local device, to avoid copying files (to
-    # avoid `mv foo ~/.trash` when ~/.trash is a separate logical device,
-    # which would effectively become `cp foo ~/.trash && rm foo`).
-
-    # Note that `path_device` exits nonzero if path not symlink, file, or dir.
-
     local fs_of_main_trash
-    fs_of_main_trash=$(path_device "${RM_SAFE_TRASH_HOME}")
-    if [ $? -ne 0 ] || [ "${fs_of_main_trash}" = "" ]; then
-      >&2 echo "rm_safe: No device for supposed trash dir. ‘${RM_SAFE_TRASH_HOME}’"
-
-      return 1
-    fi
-    _trace "fs_of_main_trash=${fs_of_main_trash}"  # E.g., "/dev/sda2"
 
     # ***
+    fs_of_main_trash="$(print_fs_of_main_trash)" || return 1
 
     local fs_of_item
     fs_of_item="$(path_device "${item_path}")"
@@ -1020,6 +1007,31 @@ rm_safe_run () {
 
     [ ${keep_processing} -ne 0 ] && return ${keep_processing}
   done
+}
+
+# ***
+
+# Resolve device for both the main trash and the file being remove, so we
+# can use the trash path on the local device, to avoid copying files (to
+# avoid `mv foo ~/.trash` when ~/.trash is a separate logical device,
+# which would effectively become `cp foo ~/.trash && rm foo`).
+
+# Note that `path_device` exits nonzero if path not symlink, file, or dir.
+
+print_fs_of_main_trash () {
+  local fs_of_main_trash
+
+  fs_of_main_trash="$(path_device "${RM_SAFE_TRASH_HOME}")"
+
+  if [ $? -ne 0 ] || [ "${fs_of_main_trash}" = "" ]; then
+    >&2 echo "rm_safe: No device for supposed trash dir. ‘${RM_SAFE_TRASH_HOME}’"
+
+    return 1
+  fi
+
+  _trace "fs_of_main_trash=${fs_of_main_trash}"  # E.g., "/dev/sda2"
+
+  printf "%s" "${fs_of_main_trash}"
 }
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
