@@ -831,13 +831,6 @@ rm_safe () {
 
   # ***
 
-  if [ ${#} -eq 0 ]; then
-    >&2 echo "rm_safe: Missing operand(s)"
-    >&2 echo "Try \`command rm --help\` for more information"
-
-    return 1
-  fi
-
   if ${RM_RECURSIVE_FORCE}; then
     command rm -rf -- "$@"
 
