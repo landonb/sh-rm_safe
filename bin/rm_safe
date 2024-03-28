@@ -960,26 +960,7 @@ rm_safe_run () {
     local fs_of_item
     fs_of_item="$(print_fs_of_item "${item_path}")" || return 1
 
-    # ***
-
-    if ! ${trash_fs_mount_locked}; then
-      trash_fs_mount=""
-
-      if [ "${fs_of_main_trash}" = "${fs_of_item}" ]; then
-        # Indicates that file being remove resides on same device and user-home,
-        # so we can remove to the user-home trash.
-        #
-        # MAYBE: Update this fcn. to support specific trash
-        # directories on each device. For now you can specify
-        # one specific dir for one drive (generally /home/$LOGNAME/.trash)
-        # and then all other drives it's assumed to be at, e.g.,
-        # /media/XXX/.trash; logical mount root, e.g., /path/to/encfs/.trash.
-        trash_fs_mount="${RM_SAFE_TRASH_HOME}"
-      else
-        trash_fs_mount=$(_sh_rm_safe_device_filepath_for_path "${item_path}")
-      fi
-      _trace "trash_fs_mount=${trash_fs_mount}"  # E.g., "/dev/sdb1"
-    fi
+    set_trash_fs_mount "${fs_of_main_trash}" "${fs_of_item}" "${item_path}"
 
     # ***
 
@@ -1042,6 +1023,33 @@ print_fs_of_item () {
   _trace "fs_of_item=${fs_of_item}"  # E.g., "/dev/sdb1"
 
   printf "%s" "${fs_of_item}"
+}
+
+# ***
+
+set_trash_fs_mount () {
+  local fs_of_main_trash="$1"
+  local fs_of_item="$2"
+  local item_path="$3"
+
+  if ! ${trash_fs_mount_locked}; then
+    trash_fs_mount=""
+
+    if [ "${fs_of_main_trash}" = "${fs_of_item}" ]; then
+      # Indicates that file being remove resides on same device and user-home,
+      # so we can remove to the user-home trash.
+      #
+      # MAYBE: Update this fcn. to support specific trash
+      # directories on each device. For now you can specify
+      # one specific dir for one drive (generally /home/$LOGNAME/.trash)
+      # and then all other drives it's assumed to be at, e.g.,
+      # /media/XXX/.trash; logical mount root, e.g., /path/to/encfs/.trash.
+      trash_fs_mount="${RM_SAFE_TRASH_HOME}"
+    else
+      trash_fs_mount=$(_sh_rm_safe_device_filepath_for_path "${item_path}")
+    fi
+    _trace "trash_fs_mount=${trash_fs_mount}"  # E.g., "/dev/sdb1"
+  fi
 }
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
