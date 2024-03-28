@@ -713,7 +713,7 @@ parse_args () {
           ;;
         --help)
           # "display this help and exit"
-          command rm --help
+          print_help
 
           return 0
           ;;
@@ -817,6 +817,51 @@ is_a_rm_arg () {
         ;;
     esac
   fi
+}
+
+# ***
+
+print_help () {
+  echo "rm_safe is a wrapper around \`rm\`"
+  echo "--------------------------------"
+  command rm --help
+
+  cat <<'EOF'
+
+rm_safe modifies `rm` behavior
+------------------------------
+
+rm_safe prefers to move files to a trash dir, e.g., `~/.trash`
+
+It'll move directories automatically and otherwise prefers not
+to prompt you
+
+rm_safe recognizes the following `rm` options:
+  -f, --force, -v, --verbose, --help, --version
+
+rm_safe ignores the other options, unless -f|--force,
+in which case `rm_safe` passes all args to `command rm`
+and doesn't do any more processing
+
+rm_safe adds these additional option(s):
+  -s, --safe      By default, `sudo rm` is a pass-through and just
+                    calls `command rm`
+                    
+                  Use `rm -s|--safe` to use `rm_safe` as 'root'
+
+                  Note this only works if you define the two aliases:
+                    alias sudo='sudo '
+                    alias rm='/path/to/rm_safe'
+                  - The trailing space in the sudo alias causes
+                    `sudo` to use shell alias, if present;
+                    otherwise `sudo rm` just calls `/bin/rm`
+
+You can bypass rm_safe easily:
+  rm_safe -f ...
+Or:
+  command rm ...
+Will both behave like normal `rm`
+EOF
 }
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
