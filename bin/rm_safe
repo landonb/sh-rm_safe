@@ -643,14 +643,12 @@ _sh_rm_safe_process_items () {
 
 # Side-effect: Sets the following vars from the caller:
 #
-#   ARG_RECURSIVE_FORCE
+#   ARG_FORCE
 #   ARG_VERBOSE
 #   N_PATH_ARGS
 
 parse_args () {
-  local arg_force=false
-  local arg_recursive=false
-  ARG_RECURSIVE_FORCE=false
+  ARG_FORCE=false
   ARG_VERBOSE=""
   N_PATH_ARGS=0
 
@@ -665,12 +663,9 @@ parse_args () {
         --)
           end_of_options=true
           ;;
-        -rf|-fr)
-          ARG_RECURSIVE_FORCE=true
-          ;;
         -f|--force)
           # "ignore nonexistent files and arguments, never prompt"
-          arg_force=true
+          ARG_FORCE=true
           ;;
         -i)
           # "prompt before every removal"
@@ -734,14 +729,13 @@ parse_args () {
           for char in $(echo "${arg#-}" | sed -E -e 's/(.)/\1\n/g'); do
             case ${char} in
               f)
-                arg_force=true
+                ARG_FORCE=true
                 ;;
               i)
                 ;;
               I)
                 ;;
               r|R)
-                arg_recursive=true
                 ;;
               d)
                 ;;
@@ -765,10 +759,6 @@ parse_args () {
   done
 
   _trace "rm_safe: $# total args / ${N_PATH_ARGS} file args"
-
-  if ${arg_force} && ${arg_recursive}; then
-    ARG_RECURSIVE_FORCE=true
-  fi
 }
 
 # ***
@@ -786,8 +776,6 @@ is_a_rm_arg () {
     case "${arg}" in
       --)
         END_OF_OPTIONS=true
-        ;&
-      -rf|-fr)
         ;&
       -f|--force)
         ;&
@@ -830,7 +818,7 @@ is_a_rm_arg () {
 
 # FIXME/2019-12-22 23:06: Split this long fcn.
 rm_safe () {
-  local ARG_RECURSIVE_FORCE=false
+  local ARG_FORCE=false
   local ARG_VERBOSE=""
   local N_PATH_ARGS=0
 
@@ -838,8 +826,8 @@ rm_safe () {
 
   # ***
 
-  if ${ARG_RECURSIVE_FORCE}; then
-    command rm -rf ${ARG_VERBOSE} -- "$@"
+  if ${ARG_FORCE}; then
+    command rm "$@"
 
     return 0
   fi
@@ -871,6 +859,8 @@ rm_safe () {
   local npath=0
   local END_OF_OPTIONS=false
 
+  local ARG_RECURSIVE_FORCE=false
+
   local item_path=""
   for item_path in "$@"; do
     # We already processed args, so skip if seen again.
@@ -890,6 +880,7 @@ rm_safe () {
 
     # ***
 
+    # The user can opt-in -rf from _sh_rm_safe_process_items prompt
     if ${ARG_RECURSIVE_FORCE}; then
       command rm -rf ${ARG_VERBOSE} -- "${item_path}"
 
