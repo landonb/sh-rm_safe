@@ -1032,24 +1032,27 @@ set_trash_fs_mount () {
   local fs_of_item="$2"
   local item_path="$3"
 
-  if ! ${trash_fs_mount_locked}; then
-    trash_fs_mount=""
-
-    if [ "${fs_of_main_trash}" = "${fs_of_item}" ]; then
-      # Indicates that file being remove resides on same device and user-home,
-      # so we can remove to the user-home trash.
-      #
-      # MAYBE: Update this fcn. to support specific trash
-      # directories on each device. For now you can specify
-      # one specific dir for one drive (generally /home/$LOGNAME/.trash)
-      # and then all other drives it's assumed to be at, e.g.,
-      # /media/XXX/.trash; logical mount root, e.g., /path/to/encfs/.trash.
-      trash_fs_mount="${RM_SAFE_TRASH_HOME}"
-    else
-      trash_fs_mount=$(_sh_rm_safe_device_filepath_for_path "${item_path}")
-    fi
-    _trace "trash_fs_mount=${trash_fs_mount}"  # E.g., "/dev/sdb1"
+  if ${trash_fs_mount_locked}; then
+    return
   fi
+
+  trash_fs_mount=""
+
+  if [ "${fs_of_main_trash}" = "${fs_of_item}" ]; then
+    # Indicates that file being remove resides on same device and user-home,
+    # so we can remove to the user-home trash.
+    #
+    # MAYBE: Update this fcn. to support specific trash
+    # directories on each device. For now you can specify
+    # one specific dir for one drive (generally /home/$LOGNAME/.trash)
+    # and then all other drives it's assumed to be at, e.g.,
+    # /media/XXX/.trash; logical mount root, e.g., /path/to/encfs/.trash.
+    trash_fs_mount="${RM_SAFE_TRASH_HOME}"
+  else
+    trash_fs_mount=$(_sh_rm_safe_device_filepath_for_path "${item_path}")
+  fi
+
+  _trace "trash_fs_mount=${trash_fs_mount}"  # E.g., "/dev/sdb1"
 }
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
