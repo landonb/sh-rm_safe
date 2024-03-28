@@ -310,7 +310,7 @@ _sh_rm_safe_prompt_missing_trashdir_options_v2 () {
   # At this point, "${TRASH_FS_MOUNT}/.trash" does not exist, and is not `/.trash`.
   # - So ask user what they want to do.
 
-  ! ${previously_printed_missing_trashdir_prompt} || echo
+  ! ${PREVIOUSLY_PRINTED_MISSING_TRASHDIR_PROMPT} || echo
 
   _sh_rm_safe_prompt_missing_trashdir_print_notice "${fs_of_item}"
 
@@ -321,7 +321,7 @@ _sh_rm_safe_prompt_missing_trashdir_options_v2 () {
   _sh_rm_safe_prompt_missing_trashdir_read_choice_and_react
   ensured=$?
 
-  previously_printed_missing_trashdir_prompt=true
+  PREVIOUSLY_PRINTED_MISSING_TRASHDIR_PROMPT=true
 
   return ${ensured}
 }
@@ -919,7 +919,7 @@ rm_safe_run () {
   local TRASH_FS_MOUNT=""
   local TRASH_FS_MOUNT_LOCKED=false
 
-  local previously_printed_missing_trashdir_prompt=false
+  local PREVIOUSLY_PRINTED_MISSING_TRASHDIR_PROMPT=false
 
   local npath=0
   local END_OF_OPTIONS=false
