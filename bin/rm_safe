@@ -612,7 +612,7 @@ _sh_rm_safe_process_items () {
     >&2 echo "rm_safe: Removed ‘${item_path}’"
 
     if [ ${ensured} -eq 32 ]; then
-      rm_recursive_force=true
+      RM_RECURSIVE_FORCE=true
     fi
   elif [ ${ensured} -eq 4 ]; then
     # ensured=4 means the trash directory is prepared; move 'deleted' files there.
@@ -638,19 +638,196 @@ _sh_rm_safe_process_items () {
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
 
-# FIXME/2019-12-22 23:06: Split this long fcn.
-# FIXME/2019-12-22 23:15: Honor `--` signalling end of options, to ignore -rf feature
-#                         (i.e., treat "-rf" as filename).
-rm_safe () {
-  local rm_recursive_force=false
+# Side-effect: Sets the following vars from the caller:
+#
+#   RM_RECURSIVE_FORCE
+#   N_PATH_ARGS
 
-  # ***
+parse_args () {
+  local arg_force=false
+  local arg_recursive=false
+  RM_RECURSIVE_FORCE=false
+  N_PATH_ARGS=0
 
-  if [ "-rf" = "${1}" ]; then
-    shift
+  local end_of_options=false
 
-    rm_recursive_force=true
+  for arg in "$@"; do
+    if ${end_of_options}; then
+      let 'N_PATH_ARGS +=1 '
+    else
+      # Arg list and "help" snippets from 'rm (GNU coreutils) 8.32'.
+      case "${arg}" in
+        --)
+          end_of_options=true
+          ;;
+        -rf|-fr)
+          RM_RECURSIVE_FORCE=true
+          ;;
+        -f|--force)
+          # "ignore nonexistent files and arguments, never prompt"
+          arg_force=true
+          ;;
+        -i)
+          # "prompt before every removal"
+          # rm_safe prompts when it's appropriate by default;
+          # use `-f` to skip prompt
+          ;;
+        -I)
+          # "prompt once before removing more than three files,
+          #  or when removing recursively; less intrusive than -i"
+          ;;
+        --interactive|--interactive=*)
+          # "prompt according to WHEN: never, once (-I),
+          #  or always (-i); without WHEN, prompt always"
+          ;;
+        --one-file-system)
+          # "when removing a hierarchy recursively, skip any
+          #  directory that is on a file system different from
+          #  that of the corresponding command line argument"
+          ;;
+        --no-preserve-root)
+          # "do not treat '/' specially"
+          ;;
+        --preserve-root|--preserve-root=*)
+          # "do not remove '/' (default); with 'all', reject any
+          #  command line argument on a separate device from its
+          #  parent"
+          ;;
+        -r|-R|--recursive)
+          # "remove directories and their contents recursively"
+          ;;
+        -d|--dir)
+          # "remove empty directories"
+          # rm_safe *moves* any directory to the ~/.trash
+          ;;
+        -v|--verbose)
+          # "explain what is being done"
+          # rm_safe doesn't currently have lots to say, except
+          # its wordy menu prompt when there's do device trash
+          ;;
+        --help)
+          # "display this help and exit"
+          command rm --help
+
+          return 0
+          ;;
+        --version)
+          # "output version information and exit"
+          command rm --version
+
+          return 0
+          ;;
+        --*)
+          # Same as, e.g., `command rm --x`.
+          >&2 echo "rm_safe: unrecognized option '${arg}'"
+          >&2 echo "Try 'rm --help' for more information."
+
+          return 1
+          ;;
+        -*)
+          for char in $(echo "${arg#-}" | sed -E -e 's/(.)/\1\n/g'); do
+            case ${char} in
+              f)
+                arg_force=true
+                ;;
+              i)
+                ;;
+              I)
+                ;;
+              r|R)
+                arg_recursive=true
+                ;;
+              d)
+                ;;
+              v)
+                ;;
+              *)
+                # Same as, e.g., `command rm -xz`.
+                >&2 echo "rm_safe: unrecognized option '${char}'"
+                >&2 echo "Try 'rm --help' for more information."
+
+                return 1
+                ;;
+            esac
+          done
+          ;;
+        *)
+          let 'N_PATH_ARGS +=1 '
+          ;;
+      esac
+    fi
+  done
+
+  _trace "rm_safe: $# total args / ${N_PATH_ARGS} file args"
+
+  if ${arg_force} && ${arg_recursive}; then
+    RM_RECURSIVE_FORCE=true
   fi
+}
+
+# ***
+
+# Side-effect: Sets the following vars from the caller:
+#
+#   END_OF_OPTIONS
+
+is_a_rm_arg () {
+  local arg="$1"
+
+  if ${END_OF_OPTIONS:-false}; then
+    return 1
+  else
+    case "${arg}" in
+      --)
+        END_OF_OPTIONS=true
+        ;&
+      -rf|-fr)
+        ;&
+      -f|--force)
+        ;&
+      -i)
+        ;&
+      -I)
+        ;&
+      --interactive|--interactive=*)
+        ;&
+      --one-file-system)
+        ;&
+      --no-preserve-root)
+        ;&
+      --preserve-root|--preserve-root=*)
+        ;&
+      -r|-R|--recursive)
+        ;&
+      -d|--dir)
+        ;&
+      -v|--verbose)
+        ;&
+      --help)
+        # We would've printed --help and exited already.
+        ;&
+      --version)
+        # We would've printed --version and exited already.
+        ;&
+      -*)
+        # We would've exited already if any -* input was not a known arg.
+        return 0
+        ;;
+      *)
+        return 1
+        ;;
+    esac
+  fi
+}
+
+# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
+
+# FIXME/2019-12-22 23:06: Split this long fcn.
+rm_safe () {
+  local RM_RECURSIVE_FORCE=false
+  local N_PATH_ARGS=0
+
+  parse_args "$@" || return 1
 
   # ***
 
@@ -661,7 +838,7 @@ rm_safe () {
     return 1
   fi
 
-  if ${rm_recursive_force}; then
+  if ${RM_RECURSIVE_FORCE}; then
     command rm -rf -- "$@"
 
     return 0
@@ -692,12 +869,19 @@ rm_safe () {
   # or run the `rm_safe` command and you'll be prompted.
 
   local npath=0
-  local npaths=$#
+  local END_OF_OPTIONS=false
 
   local item_path=""
   for item_path in "$@"; do
+    # We already processed args, so skip if seen again.
+    if is_a_rm_arg "${item_path}"; then
+      continue
+    fi
+
     let "npath += 1"
-    let "nitems_to_go = npaths - npath"
+    # This is used by _sh_rm_safe_prompt_missing_trashdir_print_options
+    # if -gt 0 to add remove-all options to menu.
+    let "nitems_to_go = N_PATH_ARGS - npath"
 
     local bname=$(basename -- "${item_path}")
     if [ "${bname}" = '.' ] || [ "${bname}" = '..' ]; then
@@ -706,7 +890,7 @@ rm_safe () {
 
     # ***
 
-    if ${rm_recursive_force}; then
+    if ${RM_RECURSIVE_FORCE}; then
       command rm -rf -- "${item_path}"
 
       >&2 echo "rm_safe: Removed ‘${item_path}’"
