@@ -1036,8 +1036,6 @@ set_trash_fs_mount () {
     return
   fi
 
-  trash_fs_mount=""
-
   if [ "${fs_of_main_trash}" = "${fs_of_item}" ]; then
     # Indicates that file being remove resides on same device and user-home,
     # so we can remove to the user-home trash.
