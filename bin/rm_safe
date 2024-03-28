@@ -613,7 +613,7 @@ _sh_rm_safe_process_items () {
     >&2 echo "rm_safe: Removed ‘${item_path}’"
 
     if [ ${ensured} -eq 32 ]; then
-      RM_RECURSIVE_FORCE=true
+      ARG_RECURSIVE_FORCE=true
     fi
   elif [ ${ensured} -eq 4 ]; then
     # ensured=4 means the trash directory is prepared; move 'deleted' files there.
@@ -643,14 +643,14 @@ _sh_rm_safe_process_items () {
 
 # Side-effect: Sets the following vars from the caller:
 #
-#   RM_RECURSIVE_FORCE
+#   ARG_RECURSIVE_FORCE
 #   ARG_VERBOSE
 #   N_PATH_ARGS
 
 parse_args () {
   local arg_force=false
   local arg_recursive=false
-  RM_RECURSIVE_FORCE=false
+  ARG_RECURSIVE_FORCE=false
   ARG_VERBOSE=""
   N_PATH_ARGS=0
 
@@ -666,7 +666,7 @@ parse_args () {
           end_of_options=true
           ;;
         -rf|-fr)
-          RM_RECURSIVE_FORCE=true
+          ARG_RECURSIVE_FORCE=true
           ;;
         -f|--force)
           # "ignore nonexistent files and arguments, never prompt"
@@ -767,7 +767,7 @@ parse_args () {
   _trace "rm_safe: $# total args / ${N_PATH_ARGS} file args"
 
   if ${arg_force} && ${arg_recursive}; then
-    RM_RECURSIVE_FORCE=true
+    ARG_RECURSIVE_FORCE=true
   fi
 }
 
@@ -830,7 +830,7 @@ is_a_rm_arg () {
 
 # FIXME/2019-12-22 23:06: Split this long fcn.
 rm_safe () {
-  local RM_RECURSIVE_FORCE=false
+  local ARG_RECURSIVE_FORCE=false
   local ARG_VERBOSE=""
   local N_PATH_ARGS=0
 
@@ -838,7 +838,7 @@ rm_safe () {
 
   # ***
 
-  if ${RM_RECURSIVE_FORCE}; then
+  if ${ARG_RECURSIVE_FORCE}; then
     command rm -rf ${ARG_VERBOSE} -- "$@"
 
     return 0
@@ -890,7 +890,7 @@ rm_safe () {
 
     # ***
 
-    if ${RM_RECURSIVE_FORCE}; then
+    if ${ARG_RECURSIVE_FORCE}; then
       command rm -rf ${ARG_VERBOSE} -- "${item_path}"
 
       >&2 echo "rm_safe: Removed ‘${item_path}’"
@@ -958,6 +958,7 @@ rm_safe () {
 
     local keep_processing=0
 
+    # Might set ARG_RECURSIVE_FORCE=true
     _sh_rm_safe_process_items "${fs_of_item}" "${item_path}" "${nitems_to_go}" "${ARG_VERBOSE}"
     keep_processing=$?
 
