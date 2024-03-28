@@ -690,6 +690,8 @@ rm_safe () {
   # The trash can way!
   # You can disable the trash by running
   #   command rm -rf ~/.trash && touch ~/.trash
+  # You can make the trash with `rmtrash` or `mkdir ~/.trash`,
+  # or run the `rm_safe` command and you'll be prompted.
 
   local npath=0
   local npaths=$#
