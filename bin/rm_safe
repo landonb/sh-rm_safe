@@ -511,7 +511,7 @@ _sh_rm_safe_prompt_missing_trashdir_read_choice_and_react () {
 
   if [ "${the_choice}" = "a" ]; then
     trash_fs_mount="${RM_SAFE_TRASH_HOME}"
-    trash_fs_mount_locked=true
+    TRASH_FS_MOUNT_LOCKED=true
 
     return 4  # All set!
   fi
@@ -908,7 +908,7 @@ rm_safe () {
 
 rm_safe_run () {
   local trash_fs_mount=""
-  local trash_fs_mount_locked=false
+  local TRASH_FS_MOUNT_LOCKED=false
 
   local previously_printed_missing_trashdir_prompt=false
   # TOO_BASHY: We'll use eval flattened variable tricks instead:
@@ -1032,7 +1032,7 @@ set_trash_fs_mount () {
   local fs_of_item="$2"
   local item_path="$3"
 
-  if ${trash_fs_mount_locked}; then
+  if ${TRASH_FS_MOUNT_LOCKED}; then
     return
   fi
 
