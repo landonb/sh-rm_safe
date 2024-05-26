@@ -30,7 +30,7 @@ rm_rotate () {
   os_is_macos && trash_name='.Trash'
 
   _rm_rotate_enumerate_devices () {
-    if command -v findmnt >/dev/null 2>&1; then
+    if command -v findmnt > /dev/null; then
       local device_path=''
       for device_path in $( \
         findmnt -l -t fuse.gocryptfs,fuse.encfs,ext4 -o TARGET --noheadings \
