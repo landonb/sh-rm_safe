@@ -109,7 +109,10 @@ os_is_macos () {
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
 
-if ! $(printf %s "$0" | grep -q -E '(^-?|\/)(ba|da|fi|z)?sh$' -); then
+PROG_NAME="rm_rotate"
+
+# Run the command unless being sourced.
+if [ "$(basename -- "$(realpath -- "$0")")" = "${PROG_NAME}" ]; then
   # Being executed.
   rm_rotate "${@}"
 else
