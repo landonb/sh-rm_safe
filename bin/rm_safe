@@ -174,12 +174,13 @@ _sh_rm_safe_ensure_trashdir () {
     fi
   else
     if [ ! -e "${TRASH_FS_MOUNT}/${RM_SAFE_TRASH_NAME}" ]; then
+      ensured=0
       # 2022-02-14: Choose your poison:
-      #  _sh_rm_safe_prompt_missing_trashdir_options_v1 "${fs_of_item}"
-      #  ensured=$?  # Will be ensured=0 or ensured=3
+      #  _sh_rm_safe_prompt_missing_trashdir_options_v1 "${fs_of_item}" \
+      #    || ensured=$?  # Will be ensured=0 or ensured=3
       _sh_rm_safe_prompt_missing_trashdir_options_v2 \
-        "${fs_of_item}" "${item_path}" "${nitems_to_go}"
-      ensured=$?  # For return values, see #ensured_legend
+        "${fs_of_item}" "${item_path}" "${nitems_to_go}" \
+        || ensured=$?  # For return values, see #ensured_legend
     fi
 
     if [ -d "${TRASH_FS_MOUNT}/${RM_SAFE_TRASH_NAME}" ]; then
@@ -301,9 +302,6 @@ _sh_rm_safe_prompt_missing_trashdir_options_v2 () {
   local item_path="$2"
   local nitems_to_go="$3"
 
-  # For return values, see #ensured_legend
-  local ensured=0
-
   _sh_rm_safe_verify_non_root_trash_fs_mount "${TRASH_FS_MOUNT}" ${item_path} ||
     return 1  # ensured=1 stops processing.
 
@@ -318,8 +316,10 @@ _sh_rm_safe_prompt_missing_trashdir_options_v2 () {
 
   _sh_rm_safe_prompt_missing_trashdir_print_options "${TRASH_FS_MOUNT}" "${nitems_to_go}"
 
-  _sh_rm_safe_prompt_missing_trashdir_read_choice_and_react
-  ensured=$?
+  # For return values, see #ensured_legend
+  local ensured=0
+  _sh_rm_safe_prompt_missing_trashdir_read_choice_and_react \
+    || ensured=$?
 
   PREVIOUSLY_PRINTED_MISSING_TRASHDIR_PROMPT=true
 
@@ -591,15 +591,16 @@ _sh_rm_safe_process_items () {
   #     -  4: All set! Remove curr item to path specified by ${TRASH_FS_MOUNT}
   #             (which is either device-local or user-home trash).
   local ensured=0
-
-  _sh_rm_safe_ensure_trashdir "${fs_of_item}" "${item_path}" "${nitems_to_go}"
-  ensured=$?
+  _sh_rm_safe_ensure_trashdir "${fs_of_item}" "${item_path}" "${nitems_to_go}" \
+    || ensured=$?
 
   if [ ${ensured} -eq 3 ]; then
     # Ask if user wants to move file to home-trash instead.
     TRASH_FS_MOUNT="${RM_SAFE_TRASH_HOME}"
 
-    _sh_rm_safe_prompt_missing_trashdir_options_v1_prompt_home_trash "${TRASH_FS_MOUNT}"
+    ensured=0
+    _sh_rm_safe_prompt_missing_trashdir_options_v1_prompt_home_trash "${TRASH_FS_MOUNT}" \
+      || ensured=$?
   fi
 
   if [ ${ensured} -eq 2 ]; then
@@ -940,7 +941,9 @@ rm_safe_run () {
     let "npath += 1"
     # This is used by _sh_rm_safe_prompt_missing_trashdir_print_options
     # if -gt 0 to add remove-all options to menu.
-    let "nitems_to_go = N_PATH_ARGS - npath"
+    # - Use || true because `let 'foo = 0'` sets $?=1
+    let "nitems_to_go = N_PATH_ARGS - npath" \
+      || true
 
     local bname=$(basename -- "${item_path}")
     if [ "${bname}" = '.' ] || [ "${bname}" = '..' ]; then
@@ -969,10 +972,9 @@ rm_safe_run () {
     # ***
 
     local keep_processing=0
-
     # Might set ARG_RECURSIVE_FORCE=true
-    _sh_rm_safe_process_items "${fs_of_item}" "${item_path}" "${nitems_to_go}" "${ARG_VERBOSE}"
-    keep_processing=$?
+    _sh_rm_safe_process_items "${fs_of_item}" "${item_path}" "${nitems_to_go}" "${ARG_VERBOSE}" \
+      || keep_processing=$?
 
     if [ ${keep_processing} -ne 0 ]; then
       return ${keep_processing}
