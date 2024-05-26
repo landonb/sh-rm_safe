@@ -1063,12 +1063,63 @@ set_trash_fs_mount () {
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
 
+clear_traps () {
+  trap - EXIT INT
+}
+
+set_traps () {
+  trap -- trap_exit EXIT
+  trap -- trap_int INT
+}
+
+exit_0 () {
+  clear_traps
+
+  exit 0
+}
+
+exit_1 () {
+  clear_traps
+
+  exit 1
+}
+
+trap_exit () {
+  clear_traps
+
+  # USAGE: Alert on unexpected error path, so you can add happy path.
+  >&2 echo "ALERT: "$(basename -- "$0")" exited abnormally!"
+  >&2 echo "- Hint: Enable \`set -x\` and run again..."
+
+  exit 2
+}
+
+trap_int () {
+  clear_traps
+
+  exit 3
+}
+
+# ***
+
+main () {
+  set -e
+
+  set_traps
+
+  rm_safe "$@"
+
+  clear_traps
+}
+
 source_deps "${BASH_SOURCE[0]}"
 unset -f source_deps
 
 if [ "${BASH_SOURCE[0]}" = "$0" ]; then
-  rm_safe "${@}"
+  main "$@"
 else
   export -f rm_safe
 fi
+
+unset -f main
 
