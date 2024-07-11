@@ -26,15 +26,15 @@ echo_boxy=false
 #          and call rm_rotate after a certain amount of time has elapsed.
 
 rm_rotate () {
-  local trash_name='.trash'
-  os_is_macos && trash_name='.Trash'
+  local trash_name=".trash"
+  os_is_macos && trash_name=".Trash"
 
   _rm_rotate_enumerate_devices () {
     if command -v findmnt > /dev/null; then
-      local device_path=''
+      local device_path=""
       for device_path in $( \
         findmnt -l -t fuse.gocryptfs,fuse.encfs,ext4 -o TARGET --noheadings \
-          | grep -v '^/boot' \
+          | grep -v "^/boot" \
           | sort \
       ); do
         _rm_rotate_rotate_device_trash "${device_path}"
@@ -65,7 +65,7 @@ rm_rotate () {
     read -e yes_or_no
 
     # Bash-specific: [ "${yes_or_no^^}" = "Y" ]. POSIX-compatible:
-    if [ "$(first_char_capped ${yes_or_no})" != 'Y' ]; then
+    if [ "$(first_char_capped ${yes_or_no})" != "Y" ]; then
       [ -z "${yes_or_no}" ] && echo
       echo "Skip! User said not to empty ‘${trash_path}’"
 
@@ -135,7 +135,7 @@ rm_rotate () {
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
 
 first_char_capped () {
-  printf "$1" | cut -c1-1 | tr '[:lower:]' '[:upper:]'
+  printf "$1" | cut -c1-1 | tr "[:lower:]" "[:upper:]"
 }
 
 mv_kludge () {

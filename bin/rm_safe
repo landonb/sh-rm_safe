@@ -32,7 +32,7 @@ source_deps () {
       # NOTE: `dash` complains if missing './'.
       . "${path}"
     else
-      local depstxt=''
+      local depstxt=""
       [ "${prfx}" != "." ] && depstxt="in ‘${prfx}/${depd}’ or "
       >&2 echo "MISSING: ‘${file}’ not found ${depstxt}on PATH."
       depsnok=true
@@ -90,8 +90,8 @@ _sh_rm_safe_device_filepath_for_path () {
 _sh_rm_safe_device_filepath_for_path_file () {
   local file="$1"
 
-  local device_path=''
-  local usage_report=''
+  local device_path=""
+  local usage_report=""
 
   # NOTE: We could use awk to get the second line of output, e.g.,
   #   usage_report=$(/bin/df -T "$1")
@@ -113,7 +113,7 @@ _sh_rm_safe_device_filepath_for_path_file () {
     # Linux df (without -T):
     #   device_path="$(echo "${usage_report}" | tr -s ' ' | cut -d ' ' -f6)"
     # Linux- and macOS-compatible:
-    device_path="$(echo "${usage_report}" | tr -s ' ' | rev | cut -d' ' -f1 | rev)"
+    device_path="$(echo "${usage_report}" | tr -s " " | rev | cut -d" " -f1 | rev)"
     _trace "usage_report=${usage_report}"
   else
     # 2020-08-25: Does this happen only on ${file} not found? (lb): I think so.
@@ -159,7 +159,7 @@ _sh_rm_safe_ensure_trashdir () {
     #   happen? This smells like a DEV issue, not the user's.
     # - Note that RM_SAFE_TRASH_HOME must be nonempty, so not here for that
     #   reason.
-    >&2 echo 'rm_safe: (DEV) ERROR: No $TRASH_FS_MOUNT (‘’) determined, what gives?'
+    >&2 echo "rm_safe: (DEV) ERROR: No $TRASH_FS_MOUNT (‘’) determined, what gives?"
   elif [ -f "${TRASH_FS_MOUNT}/${RM_SAFE_TRASH_NAME}" ]; then
     ensured=2  # So caller invokes `rm -i`.
 
@@ -201,7 +201,7 @@ _sh_rm_safe_prompt_missing_trashdir_options_v1 () {
   # v1 preso option.
   local echo_boxy=true
 
-  >&2 printf '%b\n' \
+  >&2 printf "%b\n" \
     "No root-level trash found for device ‘$(fg_lavender)${fs_of_item}$(attr_reset)’"
 
   local sudo_prefix=""
@@ -224,19 +224,19 @@ _sh_rm_safe_prompt_missing_trashdir_options_v1 () {
 
     # <Sigh> Technically this works, because `local` variables from parent
     # are visible/settable from child functions. But it still feels weird.
-    TRASH_FS_MOUNT=''
+    TRASH_FS_MOUNT=""
   fi
 
   if ${echo_boxy}; then
-    printf '%s\n' "┌──────────────────────${TRASH_FS_MOUNT//?/─}─────────────┐"
-    printf '%s\n' "│ Create new trash at ‘${TRASH_FS_MOUNT}/${RM_SAFE_TRASH_NAME}’ ?   │"
-    printf '%s'   "│ Create trash? [y/N]:              ${TRASH_FS_MOUNT//?/ }│"
-    printf '\r'
-    printf '%s'   "│ Create trash? [y/N]: "
+    printf "%s\n" "┌──────────────────────${TRASH_FS_MOUNT//?/─}─────────────┐"
+    printf "%s\n" "│ Create new trash at ‘${TRASH_FS_MOUNT}/${RM_SAFE_TRASH_NAME}’ ?   │"
+    printf "%s"   "│ Create trash? [y/N]:              ${TRASH_FS_MOUNT//?/ }│"
+    printf "\r"
+    printf "%s"   "│ Create trash? [y/N]: "
   else
-    >&2 printf '%b\n' \
+    >&2 printf "%b\n" \
       "- HINT: To skip this ask: $(fg_lavender)touch ${TRASH_FS_MOUNT}/${RM_SAFE_TRASH_NAME}$(attr_reset)"
-    printf '%b' \
+    printf "%b" \
       "rm_safe: create a new trash at ‘$(fg_lavender)${TRASH_FS_MOUNT}/${RM_SAFE_TRASH_NAME}$(attr_reset)’? [y/N] "
   fi
 
@@ -270,13 +270,13 @@ _sh_rm_safe_prompt_missing_trashdir_options_v1_prompt_home_trash () {
   local ensured=3
 
   if ${echo_boxy}; then
-    printf '%s\n' "┌────────────────────────${trash_fs_mount//?/─}───────────┐"
-    printf '%s\n' "│ Move to main trash at ‘${trash_fs_mount}/${RM_SAFE_TRASH_NAME}’ ? │"
-    printf '%s'   "│ Move item? [y/N]:                 ${trash_fs_mount//?/ }│"
-    printf '\r'
-    printf '%s'   "│ Move item? [y/N]: "
+    printf "%s\n" "┌────────────────────────${trash_fs_mount//?/─}───────────┐"
+    printf "%s\n" "│ Move to main trash at ‘${trash_fs_mount}/${RM_SAFE_TRASH_NAME}’ ? │"
+    printf "%s"   "│ Move item? [y/N]:                 ${trash_fs_mount//?/ }│"
+    printf "\r"
+    printf "%s"   "│ Move item? [y/N]: "
   else
-    printf '%b' \
+    printf "%b" \
       "rm_safe: move item to trash at ‘$(fg_lavender)${trash_fs_mount}/${RM_SAFE_TRASH_NAME}$(attr_reset)’? [y/N] "
   fi
 
@@ -361,14 +361,14 @@ _sh_rm_safe_verify_non_root_trash_fs_mount () {
 _sh_rm_safe_prompt_missing_trashdir_print_notice () {
   local fs_of_item="$1"
 
-  >&2 printf '%b\n' \
+  >&2 printf "%b\n" \
     "NOTICE: There's no device trash for ‘$(fg_lavender)${fs_of_item}$(attr_reset)’"
 }
 
 _sh_rm_safe_prompt_missing_trashdir_print_header () {
   local item_path="$1"
 
-  # SYNC_ME: There are 66 spaces between "‘${item_path}’" and "│" if item_path=''.
+  # SYNC_ME: There are 66 spaces between "‘${item_path}’" and "│" if item_path="".
   let "ftype_nspaces = 66 - ${#item_path}"
   local ftype_postfix=""
   # Only print "│"  if we're padding, otherwise let path extend past right pipe boundary.
@@ -424,7 +424,7 @@ _sh_rm_safe_prompt_missing_trashdir_print_options () {
 
   local device_trash="${trash_fs_mount}/${RM_SAFE_TRASH_NAME}"
 
-  # SYNC_ME: There are 59 spaces between "‘${device_trash}’" and "│" if device_trash=''.
+  # SYNC_ME: There are 59 spaces between "‘${device_trash}’" and "│" if device_trash="".
   # - E.g.,
   #     │          ‘’                                                           │
   let "device_trash_nspaces = 59 - ${#device_trash}"
@@ -896,7 +896,7 @@ rm_safe () {
   if [ -z "${RM_SAFE_TRASH_HOME}" ]; then
     # We set RM_SAFE_TRASH_HOME in this file, so if here, DEV's fault.
     # - Note we don't allow empty string, either.
-    >&2 echo 'rm_safe: No $RM_SAFE_TRASH_HOME (‘’), what gives?'
+    >&2 echo "rm_safe: No \$RM_SAFE_TRASH_HOME (‘’), what gives?"
 
     return 1
   fi
@@ -946,7 +946,7 @@ rm_safe_run () {
       || true
 
     local bname=$(basename -- "${item_path}")
-    if [ "${bname}" = '.' ] || [ "${bname}" = '..' ]; then
+    if [ "${bname}" = "." ] || [ "${bname}" = ".." ]; then
       continue
     fi
 
