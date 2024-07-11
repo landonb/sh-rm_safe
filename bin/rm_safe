@@ -7,6 +7,9 @@ RM_SAFE_TRASH_HOME="${RM_SAFE_TRASH_HOME:-${HOME}}"
 
 # ***
 
+# USYNC: In lieu of sourcing a common lib file, keep this default synced:
+#   ~/.kit/sh/sh-rm_safe/bin/rm_safe
+#   ~/.kit/sh/sh-rm_safe/bin/rm_rotate
 RM_SAFE_TRASH_NAME=".trash"
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #

@@ -5,6 +5,11 @@
 
 RM_SAFE_TRASH_HOME="${RM_SAFE_TRASH_HOME:-${HOME}}"
 
+# USYNC: In lieu of sourcing a common lib file, keep this default synced:
+#   ~/.kit/sh/sh-rm_safe/bin/rm_safe
+#   ~/.kit/sh/sh-rm_safe/bin/rm_rotate
+RM_SAFE_TRASH_NAME=".trash"
+
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
 
 echo_boxy=false
@@ -26,7 +31,7 @@ echo_boxy=false
 #          and call rm_rotate after a certain amount of time has elapsed.
 
 rm_rotate () {
-  local trash_name=".trash"
+  local trash_name="${RM_SAFE_TRASH_NAME:-.trash}"
   os_is_macos && trash_name=".Trash"
 
   _rm_rotate_enumerate_devices () {
