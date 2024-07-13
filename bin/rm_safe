@@ -333,7 +333,7 @@ _sh_rm_safe_prompt_missing_trashdir_options_v2 () {
 
   # For return values, see #ensured_legend
   local ensured=0
-  _sh_rm_safe_prompt_missing_trashdir_read_choice_and_react \
+  _sh_rm_safe_prompt_missing_trashdir_read_choice_and_react "${nitems_to_go}" \
     || ensured=$?
 
   PREVIOUSLY_PRINTED_MISSING_TRASHDIR_PROMPT=true
@@ -505,6 +505,8 @@ ${option_obliterate_all_items}
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
 
 _sh_rm_safe_prompt_missing_trashdir_read_choice_and_react () {
+  local nitems_to_go="$1"
+
   read the_choice
 
   local device_trash="${TRASH_FS_MOUNT}/${RM_SAFE_FIRST_TRASH}"
@@ -524,11 +526,13 @@ _sh_rm_safe_prompt_missing_trashdir_read_choice_and_react () {
     return 4  # All set! Tell caller to use ${TRASH_FS_MOUNT}/.trash.
   fi
 
-  if [ "${the_choice}" = "a" ]; then
-    TRASH_FS_MOUNT="${RM_SAFE_TRASH_HOME}"
-    TRASH_FS_MOUNT_LOCKED=true
+  if [ ${nitems_to_go} -gt 0 ]; then
+    if [ "${the_choice}" = "a" ]; then
+      TRASH_FS_MOUNT="${RM_SAFE_TRASH_HOME}"
+      TRASH_FS_MOUNT_LOCKED=true
 
-    return 4  # All set!
+      return 4  # All set!
+    fi
   fi
 
   if [ "${the_choice}" = "r" ]; then
@@ -539,8 +543,10 @@ _sh_rm_safe_prompt_missing_trashdir_read_choice_and_react () {
     return 22  # Call destructive `rm -rf` on current item.
   fi
 
-  if [ "${the_choice}" = "Ra" ]; then
-    return 32  # Call very destructive `rm -rf` on current and remaining items.
+  if [ ${nitems_to_go} -gt 0 ]; then
+    if [ "${the_choice}" = "Ra" ]; then
+      return 32  # Call very destructive `rm -rf` on current and remaining items.
+    fi
   fi
 
   if [ "${the_choice}" = "h" ]; then
