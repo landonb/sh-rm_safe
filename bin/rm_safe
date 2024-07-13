@@ -410,6 +410,10 @@ _sh_rm_safe_prompt_missing_trashdir_print_options () {
   local trash_fs_mount="$1"
   local nitems_to_go="$2"
 
+  local device_trash="${trash_fs_mount}/${RM_SAFE_FIRST_TRASH}"
+
+  local main_trash="${RM_SAFE_TRASH_HOME}/${RM_SAFE_FIRST_TRASH}"
+
   # ***
 
   local option_list="d/m/<Enter>/r/R/h"
@@ -437,8 +441,6 @@ _sh_rm_safe_prompt_missing_trashdir_print_options () {
 
   # ***
 
-  local device_trash="${trash_fs_mount}/${RM_SAFE_FIRST_TRASH}"
-
   # SYNC_ME: There are 59 spaces between "‘${device_trash}’" and "│" if device_trash="".
   # - E.g.,
   #     │          ‘’                                                           │
@@ -455,8 +457,6 @@ _sh_rm_safe_prompt_missing_trashdir_print_options () {
 
   # ***
 
-  local main_trash="${RM_SAFE_TRASH_HOME}/${RM_SAFE_FIRST_TRASH}"
-
   # SYNC_ME: There are 59 spaces between "‘${main_trash}’" and "│" if main_trash=''.
   # - E.g.,
   #     │          ‘’                                                           │
@@ -468,6 +468,15 @@ _sh_rm_safe_prompt_missing_trashdir_print_options () {
     # CRUMB: Same outcome as another repeat character trick:
     #  let "main_trash_nspaces = 66 - ${#main_trash} + 1"  # Add one for '│'
     #  main_trash_postfis="$(eval "printf '%*s' ${main_trash_nspaces} '│'")"
+  fi
+
+  # ***
+
+  local will_create_main_trash=""
+  if [ "$(realpath -- "${device_trash}")" = "$(realpath -- "${main_trash}")" ]; then
+    will_create_main_trash="\
+│                                                                       │
+│       ** Note this will create the trash directory                    │"
   fi
 
   # ***
@@ -486,6 +495,7 @@ ${text_move_all_items_to_new_trash}
 ${text_move_this_item_to_main_trash}
 │          ‘${main_trash}’${main_trash_postfis}\
 ${option_send_all_to_main_trash}
+${will_create_main_trash}
 │                                                                       │
 │ ► ↳   [<Enter>] is the same as [m]: use main trash for current item   │
 │                                                                       │
@@ -512,6 +522,8 @@ _sh_rm_safe_prompt_missing_trashdir_read_choice_and_react () {
 
   local device_trash="${TRASH_FS_MOUNT}/${RM_SAFE_FIRST_TRASH}"
 
+  local main_trash="${RM_SAFE_TRASH_HOME}/${RM_SAFE_FIRST_TRASH}"
+
   # For return values, see #ensured_legend
   if [ "${the_choice}" = "d" ]; then
     mkdir -p -- "${device_trash}"
@@ -520,6 +532,8 @@ _sh_rm_safe_prompt_missing_trashdir_read_choice_and_react () {
   fi
 
   if [ "${the_choice}" = "m" ] || [ "${the_choice}" = "" ]; then
+    mkdir -p -- "${main_trash}"
+
     # <Sigh> Technically this works, because `local` variables from parent
     # are visible/settable from child functions. But it still feels weird.
     TRASH_FS_MOUNT="${RM_SAFE_TRASH_HOME}"
