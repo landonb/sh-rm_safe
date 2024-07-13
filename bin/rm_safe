@@ -442,6 +442,7 @@ _sh_rm_safe_prompt_missing_trashdir_print_options () {
   # SYNC_ME: There are 59 spaces between "‘${device_trash}’" and "│" if device_trash="".
   # - E.g.,
   #     │          ‘’                                                           │
+  #                  12345678901234567890123456789012345678901234567890123456789
   let "device_trash_nspaces = 59 - ${#device_trash}"
   local device_trash_postfis=""
   # Only print "│"  if we're padding, otherwise let path extend past right pipe boundary.
@@ -552,7 +553,7 @@ _sh_rm_safe_prompt_missing_trashdir_read_choice_and_react () {
   if [ "${the_choice}" = "h" ]; then
     _sh_rm_safe_print_missing_trash_fs_mount_hint "${device_trash}"
 
-    return 1  # Printing hints when ask feels like a we're-done moment.
+    return 1
   fi
 }
 
