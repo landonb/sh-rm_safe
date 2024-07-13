@@ -263,7 +263,7 @@ _sh_rm_safe_prompt_missing_trashdir_options_v1 () {
     fi
   else
     # Parent sets ensured=4 in a later [ -d ].
-    ${sudo_prefix} mkdir -p "${TRASH_FS_MOUNT}/${RM_SAFE_FIRST_TRASH}"
+    ${sudo_prefix} mkdir -p -- "${TRASH_FS_MOUNT}/${RM_SAFE_FIRST_TRASH}"
 
     if [ -n "${sudo_prefix}" ]; then
       sudo chgrp staff "/${RM_SAFE_FIRST_TRASH}"
@@ -514,7 +514,7 @@ _sh_rm_safe_prompt_missing_trashdir_read_choice_and_react () {
 
   # For return values, see #ensured_legend
   if [ "${the_choice}" = "d" ]; then
-    mkdir -p "${device_trash}"
+    mkdir -p -- "${device_trash}"
 
     return 4  # All set! Tell caller to use ${TRASH_FS_MOUNT}/.trash.
   fi
@@ -571,7 +571,7 @@ _sh_rm_safe_print_missing_trash_fs_mount_hint () {
 
 - 1.) To always use a local device trash, choose 'd' or run:
 
-        mkdir \"${device_trash}\"
+        mkdir -- \"${device_trash}\"
 
 - 2.) To always ignore trash and call \`rm -i\`:
 
