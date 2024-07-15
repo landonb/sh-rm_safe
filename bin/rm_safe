@@ -155,6 +155,18 @@ _sh_rm_safe_device_filepath_for_path_file () {
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
 
+#  1: Stop processing (and return nonzero) (b/c DEV error (unrecoverable))
+RMSAFE_ENSURED_ERROR=1
+#  2: Call safe `rm` [rm -i ] on curr item (b/c user chose <r>).
+RMSAFE_ENSURED_CONFIRM=2
+# 22: Call mean `rm` [rm -rf] on curr item (b/c user chose <R>).
+RMSAFE_ENSURED_FORCE_ONE=22
+# 32: Call mean `rm` [rm -rf] on all items (b/c user chose <Ra>).
+RMSAFE_ENSURED_FORCE_ALL=32
+#  4: All set! Remove curr item to path specified by ${TRASH_FS_MOUNT}
+#     (which is either device-local or user-home trash).
+RMSAFE_ENSURED_TRASH_BIN=4
+
 _sh_rm_safe_ensure_trashdir () {
   local fs_of_item="$1"
   local item_path="$2"
@@ -163,7 +175,8 @@ _sh_rm_safe_ensure_trashdir () {
   local ensured=0
 
   if [ -z "${TRASH_FS_MOUNT}" ]; then
-    ensured=1  # So caller stops processing and returns error.
+    # So caller stops processing and returns error.
+    ensured=${RMSAFE_ENSURED_ERROR:-1}
 
     # This branch happens if _sh_rm_safe_device_filepath_for_path does not
     # find (echo) a device path.
@@ -173,7 +186,8 @@ _sh_rm_safe_ensure_trashdir () {
     #   reason.
     >&2 echo "rm_safe: (DEV) ERROR: No $TRASH_FS_MOUNT (‘’) determined, what gives?"
   elif [ -f "${TRASH_FS_MOUNT}/${RM_SAFE_FIRST_TRASH}" ]; then
-    ensured=2  # So caller invokes `rm -i`.
+    # So caller invokes `rm -i`
+    ensured=${RMSAFE_ENSURED_CONFIRM:-2}
 
     # Similar too Bash v4+ associate array:
     #   if [ -z "${previously_printed_trash_disabled_notice[${fs_of_item}]}" ]; then
@@ -196,7 +210,8 @@ _sh_rm_safe_ensure_trashdir () {
     fi
 
     if [ -d "${TRASH_FS_MOUNT}/${RM_SAFE_FIRST_TRASH}" ]; then
-      ensured=4  # So caller proceeds normally (and removes item to trash).
+      # So caller proceeds normally (and removes item to trash)
+      ensured=${RMSAFE_ENSURED_TRASH_BIN:-4}
     fi
   fi
 
@@ -540,7 +555,8 @@ _sh_rm_safe_prompt_missing_trashdir_read_choice_and_react () {
     # are visible/settable from child functions. But it still feels weird.
     TRASH_FS_MOUNT="${RM_SAFE_TRASH_HOME}"
 
-    return 4  # All set! Tell caller to use ${TRASH_FS_MOUNT}/.trash.
+    # All set! Tell caller to use ${TRASH_FS_MOUNT}/.trash.
+    return ${RMSAFE_ENSURED_TRASH_BIN:-4}
   fi
 
   if [ ${nitems_to_go} -gt 0 ]; then
@@ -548,28 +564,32 @@ _sh_rm_safe_prompt_missing_trashdir_read_choice_and_react () {
       TRASH_FS_MOUNT="${RM_SAFE_TRASH_HOME}"
       TRASH_FS_MOUNT_LOCKED=true
 
-      return 4  # All set!
+      # All set!
+      return ${RMSAFE_ENSURED_TRASH_BIN:-4}
     fi
   fi
 
   if [ "${the_choice}" = "r" ]; then
-    return 2  # Call gentle `rm -i` on current item.
+    # Call gentle `rm -i` on current item.
+    return ${RMSAFE_ENSURED_CONFIRM:-2}
   fi
 
   if [ "${the_choice}" = "R" ]; then
-    return 22  # Call destructive `rm -rf` on current item.
+    # Call destructive `rm -rf` on current item.
+    return ${RMSAFE_ENSURED_FORCE_ONE:-22}
   fi
 
   if [ ${nitems_to_go} -gt 0 ]; then
     if [ "${the_choice}" = "Ra" ]; then
-      return 32  # Call very destructive `rm -rf` on current and remaining items.
+      # Call very destructive `rm -rf` on current and remaining items.
+      return ${RMSAFE_ENSURED_FORCE_ALL:-32}
     fi
   fi
 
   if [ "${the_choice}" = "h" ]; then
     _sh_rm_safe_print_missing_trash_fs_mount_hint "${device_trash}"
 
-    return 1
+    return ${RMSAFE_ENSURED_ERROR:-1}
   fi
 }
 
@@ -643,20 +663,22 @@ _sh_rm_safe_process_items () {
   #       || ensured=$?
   #   fi
 
-  if [ ${ensured} -eq 2 ]; then
+  if [ ${ensured} -eq ${RMSAFE_ENSURED_CONFIRM:-2} ]; then
     # User specifically not using safety trash on this device; or for this file.
     command rm -i ${arg_verbose} -- "${item_path}"
-  elif [ ${ensured} -eq 22 ] || [ ${ensured} -eq 32 ]; then
+  elif [ ${ensured} -eq ${RMSAFE_ENSURED_FORCE_ONE:-22} ] \
+    || [ ${ensured} -eq ${RMSAFE_ENSURED_FORCE_ALL:-32} ] \
+  ; then
     command rm -rf ${arg_verbose} -- "${item_path}"
 
     # We already printed a prompt. Might as well print a confirmation?
     echo
     >&2 echo "rm_safe: Removed ‘${item_path}’"
 
-    if [ ${ensured} -eq 32 ]; then
+    if [ ${ensured} -eq ${RMSAFE_ENSURED_FORCE_ALL:-32} ]; then
       ARG_RECURSIVE_FORCE=true
     fi
-  elif [ ${ensured} -eq 4 ]; then
+  elif [ ${ensured} -eq ${RMSAFE_ENSURED_TRASH_BIN:-4} ]; then
     # ensured=4 means the trash directory is prepared; move 'deleted' files there.
     local fname=${bname}
 
