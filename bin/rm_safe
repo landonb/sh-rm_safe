@@ -205,74 +205,76 @@ _sh_rm_safe_ensure_trashdir () {
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
 
-_sh_rm_safe_prompt_missing_trashdir_options_v1 () {
-  local fs_of_item="$1"
-
-  local ensured=0
-
-  # v1 preso option.
-  local echo_boxy=${RM_SAFE_ECHO_BOXY:-true}
-
-  >&2 printf "%b\n" \
-    "No root-level trash found for device ‘$(fg_lavender)${fs_of_item}$(attr_reset)’"
-
-  local sudo_prefix=""
-
-  if [ "${TRASH_FS_MOUNT}" = "/" ]; then
-    # The file being deleted lives on the root device but the default
-    # trash directory is not on the same device. This could mean the
-    # user has an encrypted home directory. Rather than moving files
-    # to the encrypted space, use an unencrypted trash location, but
-    # make the user do it.
-    # - Note this is not the case that the user has encrypted the
-    #   entire drive. Just their home directory.
-    >&2 echo
-    >&2 echo "No root trash directory ‘/${RM_SAFE_FIRST_TRASH}’ found on root device ‘/’"
-    >&2 echo
-    >&2 echo "- Possibly because your home is encrypted, good job!"
-    >&2 echo
-
-    sudo_prefix="sudo"
-
-    # <Sigh> Technically this works, because `local` variables from parent
-    # are visible/settable from child functions. But it still feels weird.
-    TRASH_FS_MOUNT=""
-  fi
-
-  if ${echo_boxy}; then
-    printf "%s\n" "┌──────────────────────${TRASH_FS_MOUNT//?/─}─────────────┐"
-    printf "%s\n" "│ Create new trash at ‘${TRASH_FS_MOUNT}/${RM_SAFE_FIRST_TRASH}’ ?   │"
-    printf "%s"   "│ Create trash? [y/N]:              ${TRASH_FS_MOUNT//?/ }│"
-    printf "\r"
-    printf "%s"   "│ Create trash? [y/N]: "
-  else
-    >&2 printf "%b\n" \
-      "- HINT: To skip this ask: $(fg_lavender)touch ${TRASH_FS_MOUNT}/${RM_SAFE_FIRST_TRASH}$(attr_reset)"
-    printf "%b" \
-      "rm_safe: create a new trash at ‘$(fg_lavender)${TRASH_FS_MOUNT}/${RM_SAFE_FIRST_TRASH}$(attr_reset)’? [y/N] "
-  fi
-
-  read the_choice
-
-  if [ "${the_choice}" != "y" ] && [ "${the_choice}" != "Y" ]; then
-    ensured=3  # So caller asks to move to home-trash; or invokes `rm -i`.
-    if ${echo_boxy}; then
-      >&2 echo "│ HINT: To disable this ask:        ${TRASH_FS_MOUNT//?/ }│"
-      >&2 echo "│          touch ${TRASH_FS_MOUNT}/${RM_SAFE_FIRST_TRASH}            │"
-      >&2 echo "└──────────────────────${TRASH_FS_MOUNT//?/─}─────────────┘"
-    fi
-  else
-    # Parent sets ensured=4 in a later [ -d ].
-    ${sudo_prefix} mkdir -p -- "${TRASH_FS_MOUNT}/${RM_SAFE_FIRST_TRASH}"
-
-    if [ -n "${sudo_prefix}" ]; then
-      sudo chgrp staff "/${RM_SAFE_FIRST_TRASH}"
-      sudo chmod 2775 "/${RM_SAFE_FIRST_TRASH}"
-    fi
-  fi
-
-  return ${ensured}
-}
+# ISOFF/2024-07-14: Old v1 flow:
+#
+#   _sh_rm_safe_prompt_missing_trashdir_options_v1 () {
+#     local fs_of_item="$1"
+#
+#     local ensured=0
+#
+#     # v1 preso option.
+#     local echo_boxy=${RM_SAFE_ECHO_BOXY:-true}
+#
+#     >&2 printf "%b\n" \
+#       "No root-level trash found for device ‘$(fg_lavender)${fs_of_item}$(attr_reset)’"
+#
+#     local sudo_prefix=""
+#
+#     if [ "${TRASH_FS_MOUNT}" = "/" ]; then
+#       # The file being deleted lives on the root device but the default
+#       # trash directory is not on the same device. This could mean the
+#       # user has an encrypted home directory. Rather than moving files
+#       # to the encrypted space, use an unencrypted trash location, but
+#       # make the user do it.
+#       # - Note this is not the case that the user has encrypted the
+#       #   entire drive. Just their home directory.
+#       >&2 echo
+#       >&2 echo "No root trash directory ‘/${RM_SAFE_FIRST_TRASH}’ found on root device ‘/’"
+#       >&2 echo
+#       >&2 echo "- Possibly because your home is encrypted, good job!"
+#       >&2 echo
+#
+#       sudo_prefix="sudo"
+#
+#       # <Sigh> Technically this works, because `local` variables from parent
+#       # are visible/settable from child functions. But it still feels weird.
+#       TRASH_FS_MOUNT=""
+#     fi
+#
+#     if ${echo_boxy}; then
+#       printf "%s\n" "┌──────────────────────${TRASH_FS_MOUNT//?/─}─────────────┐"
+#       printf "%s\n" "│ Create new trash at ‘${TRASH_FS_MOUNT}/${RM_SAFE_FIRST_TRASH}’ ?   │"
+#       printf "%s"   "│ Create trash? [y/N]:              ${TRASH_FS_MOUNT//?/ }│"
+#       printf "\r"
+#       printf "%s"   "│ Create trash? [y/N]: "
+#     else
+#       >&2 printf "%b\n" \
+#         "- HINT: To skip this ask: $(fg_lavender)touch ${TRASH_FS_MOUNT}/${RM_SAFE_FIRST_TRASH}$(attr_reset)"
+#       printf "%b" \
+#         "rm_safe: create a new trash at ‘$(fg_lavender)${TRASH_FS_MOUNT}/${RM_SAFE_FIRST_TRASH}$(attr_reset)’? [y/N] "
+#     fi
+#
+#     read the_choice
+#
+#     if [ "${the_choice}" != "y" ] && [ "${the_choice}" != "Y" ]; then
+#       ensured=3  # So caller asks to move to home-trash; or invokes `rm -i`.
+#       if ${echo_boxy}; then
+#         >&2 echo "│ HINT: To disable this ask:        ${TRASH_FS_MOUNT//?/ }│"
+#         >&2 echo "│          touch ${TRASH_FS_MOUNT}/${RM_SAFE_FIRST_TRASH}            │"
+#         >&2 echo "└──────────────────────${TRASH_FS_MOUNT//?/─}─────────────┘"
+#       fi
+#     else
+#       # Parent sets ensured=4 in a later [ -d ].
+#       ${sudo_prefix} mkdir -p -- "${TRASH_FS_MOUNT}/${RM_SAFE_FIRST_TRASH}"
+#
+#       if [ -n "${sudo_prefix}" ]; then
+#         sudo chgrp staff "/${RM_SAFE_FIRST_TRASH}"
+#         sudo chmod 2775 "/${RM_SAFE_FIRST_TRASH}"
+#       fi
+#     fi
+#
+#     return ${ensured}
+#   }
 
 # ***
 
@@ -630,14 +632,16 @@ _sh_rm_safe_process_items () {
   _sh_rm_safe_ensure_trashdir "${fs_of_item}" "${item_path}" "${nitems_to_go}" \
     || ensured=$?
 
-  if [ ${ensured} -eq 3 ]; then
-    # Ask if user wants to move file to home-trash instead.
-    TRASH_FS_MOUNT="${RM_SAFE_TRASH_HOME}"
-
-    ensured=0
-    _sh_rm_safe_prompt_missing_trashdir_options_v1_prompt_home_trash "${TRASH_FS_MOUNT}" \
-      || ensured=$?
-  fi
+  # ISOFF/2024-07-14: Old v1 flow:
+  #
+  #   if [ ${ensured} -eq 3 ]; then
+  #     # Ask if user wants to move file to home-trash instead.
+  #     TRASH_FS_MOUNT="${RM_SAFE_TRASH_HOME}"
+  #
+  #     ensured=0
+  #     _sh_rm_safe_prompt_missing_trashdir_options_v1_prompt_home_trash "${TRASH_FS_MOUNT}" \
+  #       || ensured=$?
+  #   fi
 
   if [ ${ensured} -eq 2 ]; then
     # User specifically not using safety trash on this device; or for this file.
