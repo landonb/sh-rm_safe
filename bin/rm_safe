@@ -194,7 +194,7 @@ _sh_rm_safe_ensure_trashdir () {
     if [ -z "$(eval echo '$'previously_printed_trash_disabled_notice${fs_of_item})" ]; then
       >&2 echo "The trash is disabled on device ‘${fs_of_item}’"
 
-      # Similar too Bash v4+ associate array:
+      # Similar to Bash v4+ associate array:
       #  previously_printed_trash_disabled_notice[${fs_of_item}]="1"
       eval "previously_printed_trash_disabled_notice${fs_of_item}='1'"
     fi
