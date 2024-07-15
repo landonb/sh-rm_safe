@@ -543,13 +543,13 @@ _sh_rm_safe_prompt_missing_trashdir_read_choice_and_react () {
 
   # For return values, see #ensured_legend
   if [ "${the_choice}" = "d" ]; then
-    mkdir -p -- "${device_trash}"
+    _sh_rm_safe_ensure_trash_dir_with_proper_permissions "${device_trash}"
 
     return 4  # All set! Tell caller to use ${TRASH_FS_MOUNT}/.trash.
   fi
 
   if [ "${the_choice}" = "m" ] || [ "${the_choice}" = "" ]; then
-    mkdir -p -- "${main_trash}"
+    _sh_rm_safe_ensure_trash_dir_with_proper_permissions "${main_trash}"
 
     # <Sigh> Technically this works, because `local` variables from parent
     # are visible/settable from child functions. But it still feels weird.
@@ -590,6 +590,23 @@ _sh_rm_safe_prompt_missing_trashdir_read_choice_and_react () {
     _sh_rm_safe_print_missing_trash_fs_mount_hint "${device_trash}"
 
     return ${RMSAFE_ENSURED_ERROR:-1}
+  fi
+}
+
+# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
+
+# USYNC: See same-named fcn. in rm_rotate
+_sh_rm_safe_ensure_trash_dir_with_proper_permissions () {
+  local trash_dir="$1"
+
+  command mkdir -p -- "${trash_dir}"
+
+  command chmod 700 "${trash_dir}"
+
+  if os_is_macos; then
+    # Ensure ~/.Trash0 permissions like ~/.Trash
+    # - Though perhaps to 
+    command chmod +a "group:everyone deny delete" "${trash_dir}"
   fi
 }
 
