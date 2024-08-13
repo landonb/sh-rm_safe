@@ -29,6 +29,7 @@ rmrm () {
   for path in "$@"; do
     if [ "/" = "${path}" ]; then
       >&2 echo "rmrm: refusing to remove ‘${path}’"
+
       return 1
     elif [ "." = "${path}" ] || [ ".." = "${path}" ]; then
       # 2020-04-07: MEH: We can continue, right?
