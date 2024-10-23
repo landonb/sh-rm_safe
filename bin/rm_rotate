@@ -221,7 +221,7 @@ rm_rotate () {
     #   the user runs `rm_rotate`, then it deletes the former directory
     #   and moves the active trash to the TBD position. Thus, if user
     #   wants to really permantently remove what's in the trash, they
-    #   run rm_trash twice in a row.
+    #   should run `rm_rotate` twice in a row.
     if [ -d "${final_path}" ]; then
       # Check @macOS ACL permissions using Apple ls's -e, e.g.,
       #   $ /bin/ls -le -d ~/.Trash
