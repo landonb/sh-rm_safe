@@ -292,7 +292,12 @@ _sh_rm_safe_ensure_trash_dir_with_proper_permissions () {
 
   if os_is_macos; then
     # Ensure ~/.Trash0 permissions like ~/.Trash
-    command chmod +a "group:everyone deny delete" "${trash_dir}"
+    if ! command chmod +a "group:everyone deny delete" "${trash_dir}"; then
+      # E.g.,
+      #   chmod: Failed to set ACL on file '/Users/puck/.Trash': Operation not permitted
+
+      >&2 echo "ERROR: You may need to enable Full Disk Access on your terminal app"
+    fi
   fi
 }
 
