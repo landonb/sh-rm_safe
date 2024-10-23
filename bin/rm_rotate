@@ -182,6 +182,11 @@ rm_rotate () {
       echo "- At least nothing found at ‘${final_path}’"
 
       return 0
+    elif [ -h "${final_path}" ]; then
+      echo "SKIPD: Disregarding symlink ‘${final_path}’"
+      echo "- With final destination at ‘$(realpath -- "${final_path}")’"
+
+      return 0
     fi
 
     local yes_or_no=""
