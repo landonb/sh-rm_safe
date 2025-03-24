@@ -115,5 +115,11 @@ be found on `PATH`, e.g.,
   export PATH=$PATH:/path/to/sh-rm_safe/bin
   ```
 
-Enjoy!
+# Related projects
+
+The [`trash`][hasseg-trash] command-line program for macOS (available [from Homebrew](https://formulae.brew.sh/formula/trash)) is an Objective-C app that uses Finder to trash files.
+
+- See [*Trash files from the OS X command line*](https://hasseg.org/blog/post/406/trash-files-from-the-os-x-command-line/) for more details and alternative approaches.
+
+[hasseg-trash]: https://hasseg.org/trash/
 
