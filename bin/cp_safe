@@ -5,18 +5,18 @@
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
 
-function cp_safe () {
+function cp_safe() {
   local cp_force=false
 
   for arg in "$@"; do
     case "${arg}" in
-      --)
-        # End of options.
-        break
-        ;;
-      -f|--force)
-        cp_force=true
-        ;;
+    --)
+      # End of options.
+      break
+      ;;
+    -f | --force)
+      cp_force=true
+      ;;
     esac
   done
 
@@ -32,4 +32,3 @@ function cp_safe () {
 if [ "$0" = "${BASH_SOURCE[0]}" ]; then
   cp_safe "$@"
 fi
-
