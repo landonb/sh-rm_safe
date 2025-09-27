@@ -91,29 +91,35 @@ is more appropriate for your needs, e.g.,
 
 The included `Makefile` can also be used to help install.
 
-- E.g., you could clone this project somewhere and
-  then run a `sudo make install` to install it globally:
+Clone this project somewhere and then run `make install`:
 
-  ```shell
-  git clone https://github.com/landonb/sh-rm_safe.git
-  cd sh-rm_safe
-  # Install to /usr/local/bin
-  sudo make install
-  ```
-
-- Specify a `PREFIX` to install anywhere else, such as locally, e.g.,
+- Specify a `PREFIX` to install under user home, e.g.,
 
   ```shell
   # Install to $USER/.local/bin
   PREFIX=~/.local/bin make install
   ```
 
-  And then ensure that the target directory is on the user's `PATH` variable.
+  You'll obviously need to ensure that the target directory
+  is on the user's `PATH` variable.
 
   You could, for example, add the following to `~/.bashrc`:
 
   ```shell
   export PATH=$PATH:$HOME/.local/bin
+  ```
+
+  The make-install command is very basic: it copies each
+  of the shell scripts to the target directory.
+
+- You could alternatively install systemwide using `sudo`,
+  but you don't need to do this:
+
+  ```shell
+  git clone https://github.com/landonb/sh-rm_safe.git
+  cd sh-rm_safe
+  # Install to /usr/local/bin
+  sudo make install
   ```
 
 ### Manual install
