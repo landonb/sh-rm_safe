@@ -20,46 +20,57 @@ I like to shadow the builtin `rm` command, e.g.,
 Then you can "delete" files like normal, e.g.,
 
   ```shell
-  $ ls ~/.trash
+  $ ls ~/.trash0
 
   $ touch -- foo -bar --baz && ls
   -bar  --baz  foo
 
   $ rm -bar --baz foo
 
-  $ ls ~/.trash
+  $ ls ~/.trash0
   -bar  --baz  foo
   ```
 
-See, the files were just moved to `~/.trash`!
+See, the files were just moved to `~/.trash0`!
 
-Also, you do not need to prevent options parsing of dash-prefixed names,
-i.e., you do not need to call `rm -- -bar --baz foo`.
+- Note you do not need to prevent options parsing of
+  dash-prefixed names, i.e., you do not need to call
+  `rm -- -bar --baz foo`.
 
-Note that running the command preserves previously-"deleted" files,
-e.g.,
+- Note also this project uses a two-step trash procedure,
+  first to `~/.trash0`, and then to `~/.trash` — or first
+  to `~/.Trash0` on macOS, and then to `~/.Trash`.
+
+  This lets you empty the trash, say, weekly, but ensures that
+  any file you trash won't actually be deleted for at least week,
+  giving you a little grace period in case you end up deleting
+  something inadvertently.
+
+The `rm_safe` command will not overwrite previously-"deleted" files
+of the same name, e.g.,
 
   ```shell
-  $ ls ~/.trash
+  $ ls ~/.trash0
   -bar  --baz  foo
 
   $ touch -- foo -bar --baz
 
   $ rm foo -bar --baz
 
-  $ ls ~/.trash
+  $ ls ~/.trash0
   -bar  -bar.2020_03_17_22h54m20s_237166859  --baz  --baz.2020_03_17...
   ```
 
 To cleanup the trash directory, run `rm_rotate` periodically.
-This moves `~/.trash` to `~/.trash-TBD`,
-and it deletes the previous `~/.trash-TBD`.
-(So you really have to run `rm_rotate` twice after the initial `rm`
-to really delete a file!)
 
-As an alternative, if you're serious about really deleting a file
-or a directory, run `rmrm` (and harness the destructive power of
-`command rm -rf -- "$@"`).
+- This deletes `~/.trash` and then renames `~/.trash0` to `~/.trash`.
+
+  (So you really have to run `rm_rotate` twice after the initial `rm`
+  to really delete a file!)
+
+- As an alternative, if you're serious about really deleting a file
+  or a directory, run `rmrm` (and harness the destructive power of
+  `command rm -rf -- "$@"`).
 
 ## Installation
 
