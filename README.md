@@ -1,16 +1,17 @@
 # `sh-rm_safe`
 
-Safe, dash-aware `rm` wrapper.
+Safe, hyphen-aware `rm` wrapper.
 
-By *safe*, it "deletes" files by moving them non-destructively to `~/.trash`.
+By *safe*, it "deletes" files by moving them non-destructively to
+an intermediate `~/.trash` directory.
 
-By *dash-aware*, you don't need to worry about using `--` before path values.
+By *hyphen-aware*, you don't need to worry about using `--` before path values.
 
 ## Usage
 
 You'll probably want this easily accessible.
 
-I like to just shadow the builtin command, e.g.,
+I like to shadow the builtin `rm` command, e.g.,
 
   ```shell
   $ alias rm=rm_safe
