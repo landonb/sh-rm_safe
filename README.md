@@ -141,3 +141,30 @@ The [`trash`][hasseg-trash] command-line program for macOS (available [from Home
 
 [hasseg-trash]: https://hasseg.org/trash/
 
+On Debian distros, the `trash` command from the [`trash-cli`][trash-cli]
+package provides an interface to the same trash that your file manager uses
+(generally found at `${XDG_DATA_HOME:-~/.local/share}/Trash`).
+
+[trash-cli]: https://github.com/andreafrancia/trash-cli
+
+You might enjoy using your desktop environment's trash if you'd like
+to capture metadata about trashed files.
+
+- For instance, when you use the GNOME *Nautilus* File Manager to
+  delete a file, it tracks the previous file location and deletion
+  date.
+
+  - E.g., here's a look at the trash directory after
+    removing a file using *Nautilus*:
+
+        $ tree ~/.local/share/Trash
+        /home/user/.local/share/Trash
+        ├── files
+        │   └── my-file
+        └── info
+        └── my-file.trashinfo
+
+        $ cat ~/.local/share/Trash/info/my-file.trashinfo
+        [Trash Info]
+        Path=/home/user/Documents/my-file
+        DeletionDate=2025-09-26T21:37:23
