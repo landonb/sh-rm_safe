@@ -64,7 +64,7 @@ set_environs() {
 #   macOS Trash.
 # - These rules now apply, because macOS:
 #   - The first "trash" location is a directory that other apps
-#     should not care about: ~/.Trash-TBD
+#     should not care about: ~/.Trash0 (née ~/.Trash-TBD)
 #   - The second "trash" location (once you rotate) is the normal
 #     macOS Trash: ~/.Trash
 #     - This is logically the same path this project has used on Linux
@@ -91,8 +91,8 @@ set_environs() {
 #   has used for years, albeit capitalized, e.g.,:
 #     os_is_macos && trash_name='.Trash'
 #   and to move individual paths out of it on rotation (e.g.,
-#   `mv ~/.Trash/* ~/.Trash-TDB`), rather than simply renaming the
-#   directory (`mv ~/.Trash ~/.Trash-TBD`) which macOS disallows.
+#   `mv ~/.Trash/* ~/.Trash0`), rather than simply renaming the
+#   directory (`mv ~/.Trash ~/.Trash0`) which macOS disallows.
 #   - But then rotated files are no longer protected like files in the
 #     honorable ~/.Trash.
 # - But does ACL on the ~/.Trash really matter?
@@ -236,14 +236,14 @@ rm_rotate() {
       rotate_is_deletable=false
     fi
 
-    # Remove the TBD directory from last time.
-    # - Note that rm_rotate is not time-based or anything: It rotates
-    #   only when user runs `rm_rotate`. That is, it doesn't keep files
-    #   for some set amount of time or anything; it keeps files until
-    #   the user runs `rm_rotate`, then it deletes the former directory
-    #   and moves the active trash to the TBD position. Thus, if user
-    #   wants to really permantently remove what's in the trash, they
-    #   should run `rm_rotate` twice in a row.
+    # Remove the final trash (/<dev>/.trash).
+    # - This directory was the first trash (/dev/.trash0) at some
+    #   point in the past (until whenever the user last rotated).
+    # - Note that rm_rotate is not time-based or anything (though
+    #   you could wire it to cron, eh): It rotates only when user
+    #   runs `rm_rotate`.
+    # ∴ If user really wants to permantently remove what's in the
+    #   trash, they should run `rm_rotate` twice.
     if [ -d "${final_path}" ]; then
       # Check @macOS ACL permissions using Apple ls's -e, e.g.,
       #   $ /bin/ls -le -d ~/.Trash
@@ -257,7 +257,8 @@ rm_rotate() {
       fi
     fi
 
-    # Avoid creating -TBD directory if trash already empty.
+    # Defer creating final trash (/<dev>/.trash) if first trash
+    # (/<dev>/.trash0) currently empty.
     if [ -z "$(command ls -- "${first_path}")" ]; then
 
       return
