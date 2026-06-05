@@ -236,43 +236,46 @@ rm_rotate() {
     fi
 
     # Avoid creating -TBD directory if trash already empty.
-    if [ -n "$(command ls -- "${first_path}")" ]; then
-      # First trash not empty. Move to final directory (which will be
-      # deleted on next rm_rotate), and then create a new first directory.
+    if [ -z "$(command ls -- "${first_path}")" ]; then
 
-      if ${trash_is_deletable} && ${rotate_is_deletable}; then
-        ${DRY_ECHO} command mv -- "${first_path}" "${final_path}"
-        ${DRY_ECHO} command touch -- "${final_path}"
-        ${DRY_ECHO} command mkdir -p -- "${first_path}"
-      else
-        # SAVVY: Because ACL, cannot delete (or rename) ~/.Trash
-        # This `mkdir` unnecessary but just to be clear.
-        ${DRY_ECHO} command mkdir -p -- "${final_path}"
-        # BWARE: Note the mv'ing ".*" includes "." and "..", which
-        # generates warnings, e.g., on Linux:
-        #   $ command mv -- foo/* foo/.* bar
-        #   mv: cannot move 'foo/.' to 'bar/.': Device or resource busy
-        #   mv: 'foo/..' and 'bar/..' are the same file
-        # Or on macOS:
-        #   $ command mv -- foo/* foo/.* bar
-        #   mv: rename foo/. to bar/.: Invalid argument
-        #   mv: foo/.. and bar/.. are identical
-        # - If we limit this script to Bash, we could use dotglob, e.g.,
-        #     #!/usr/bin/env bash
-        #     ...
-        #     local old_dot_glob
-        #     old_dot_glob="$(shopt -p dotglob)"
-        #     shopt -s dotglob
-        #     command mv -- "${first_path}"/* "${final_path}"
-        #     eval "${old_dot_glob}"
-        # - Better yet, for POSIX compatibility, use `find`:
-        ${DRY_ECHO} \
-          find "${first_path}" -mindepth 1 -maxdepth 1 -name "*" \
-          -exec $(gnu_mv) -t "${final_path}" {} \+
-      fi
-
-      _sh_rm_safe_init_trash_dirs "${first_path}" "${final_path}"
+      return
     fi
+
+    # First trash not empty. Move to final directory (which will be
+    # deleted on next rm_rotate), and then create a new first directory.
+
+    if ${trash_is_deletable} && ${rotate_is_deletable}; then
+      ${DRY_ECHO} command mv -- "${first_path}" "${final_path}"
+      ${DRY_ECHO} command touch -- "${final_path}"
+      ${DRY_ECHO} command mkdir -p -- "${first_path}"
+    else
+      # SAVVY: Because ACL, cannot delete (or rename) ~/.Trash
+      # This `mkdir` unnecessary but just to be clear.
+      ${DRY_ECHO} command mkdir -p -- "${final_path}"
+      # BWARE: Note the mv'ing ".*" includes "." and "..", which
+      # generates warnings, e.g., on Linux:
+      #   $ command mv -- foo/* foo/.* bar
+      #   mv: cannot move 'foo/.' to 'bar/.': Device or resource busy
+      #   mv: 'foo/..' and 'bar/..' are the same file
+      # Or on macOS:
+      #   $ command mv -- foo/* foo/.* bar
+      #   mv: rename foo/. to bar/.: Invalid argument
+      #   mv: foo/.. and bar/.. are identical
+      # - If we limit this script to Bash, we could use dotglob, e.g.,
+      #     #!/usr/bin/env bash
+      #     ...
+      #     local old_dot_glob
+      #     old_dot_glob="$(shopt -p dotglob)"
+      #     shopt -s dotglob
+      #     command mv -- "${first_path}"/* "${final_path}"
+      #     eval "${old_dot_glob}"
+      # - Better yet, for POSIX compatibility, use `find`:
+      ${DRY_ECHO} \
+        find "${first_path}" -mindepth 1 -maxdepth 1 -name "*" \
+        -exec $(gnu_mv) -t "${final_path}" {} \+
+    fi
+
+    _sh_rm_safe_init_trash_dirs "${first_path}" "${final_path}"
   }
 
   _rm_rotate_enumerate_devices
