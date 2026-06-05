@@ -200,180 +200,179 @@ rm_rotate() {
   local first_trash="${RM_SAFE_FIRST_TRASH}"
   local final_trash="${RM_SAFE_FINAL_TRASH}"
 
-  _rm_rotate_enumerate_devices() {
-    # Crumb: rm_rotate starts here
-    if command -v findmnt >/dev/null; then
-      local device_path=""
-      for device_path in $(
-        findmnt -l -t fuse.gocryptfs,fuse.encfs,ext4 -o TARGET --noheadings |
-          grep -v "^/boot" |
-          sort
-      ); do
-        _rm_rotate_rotate_device_trash "${device_path}"
-      done
-    else
-      # @macOS, etc.
-      _rm_rotate_rotate_device_trash "/"
-    fi
-  }
-
-  # ***
-
-  _rm_rotate_rotate_device_trash() {
-    local device_path="$1"
-
-    # E.g., ~/.trash0
-    local first_path
-    # E.g., ~/.trash
-    local final_path
-
-    if [ "${device_path}" = "/" ]; then
-      first_path="${RM_SAFE_TRASH_HOME}/${first_trash}"
-      final_path="${RM_SAFE_TRASH_HOME}/${final_trash}"
-    else
-      first_path="${device_path}/${first_trash}"
-      final_path="${device_path}/${final_trash}"
-    fi
-
-    # Tailings, as in residue, as in the this path might be
-    # considered residue. For example, maybe the final path
-    # *used* to exist, but the user later disabled trash by
-    # deleting it, but forgot to cleanup the first path dir.
-    _rm_rotate_alert_tailings() {
-      if ${RM_SAFE_INHIBIT_ALERT_TAILINGS:=false} &&
-        [ -e "${first_path}" ]; then
-        echo "- Also be aware tailings at ‘${first_path}’"
-      fi
-    }
-
-    if [ ! -d "${final_path}" ]; then
-      # There's no "final" trash (i.e., the contemporary /<dev>/.trash is absent)
-      # on this device, which means rm_safe is "disabled" on this device
-      # (though we alert if the ${first_trash} exists (e.g., /<dev>/.trash0)).
-      # CRUMB: #_new_item
-      local leader=""
-      echo "${leader} $(fg_lightmagenta)Skipping$(attr_reset): Nothing at: $(
-        _rmr_print_path_stylized "${device_path}" "${final_trash}"
-      )"
-      _rm_rotate_alert_tailings
-
-      return 0
-    elif [ -h "${final_path}" ]; then
-      # The "final" trash is a symlink (though we don't verify its target).
-      # UCASE: The typical use case is to symlink /<dev>/.trash to the main
-      # home device ~/.trash; then files are mv'd to the main trash on rm.
-      # - Similarly to when /<dev>/.trash is absent, tell the user when
-      #   first_trash (e.g., /<dev>/.trash0) exists.
-      # - Note we (obviously) don't empty the symlink target; we assume that
-      #   happens on another loop (and if the symlink is *not* to a
-      #   /<dev>/.trash[0]/ directory, well, that's the user's concern).
-      echo "SKIPD: Disregarding symlink ‘${final_path}’"
-      echo "- With final destination at ‘$(realpath -- "${final_path}")’"
-      _rm_rotate_alert_tailings
-
-      return 0
-    fi
-
-    _sh_rm_rotate_print_stats "${first_path}" "${final_path}"
-
-    if ${do_report}; then
-
-      return 0
-    fi
-
-    local yes_or_no=""
-    printf %s "Empty ‘${final_path}’, and replace with trash from ‘${first_path}’? [y/n] "
-    read yes_or_no
-
-    # Bash-specific: [ "${yes_or_no^^}" = "Y" ]. POSIX-compatible:
-    if [ "$(first_char_capped ${yes_or_no})" != "Y" ]; then
-      if [ -z "${yes_or_no}" ]; then
-        echo
-      fi
-      # REFER: https://en.wikipedia.org/wiki/Sorry_Ma,_Forgot_to_Take_Out_the_Trash
-      echo "SKIPD: Sorry Ma, left trash ‘${first_path}’"
-
-      return 0
-    fi
-
-    local first_path_is_deletable=true
-    if ! _rm_rotate_acl_can_delete_directory "${first_path}"; then
-      first_path_is_deletable=false
-    fi
-
-    local rotate_is_deletable=true
-    if ! _rm_rotate_acl_can_delete_directory "${final_path}"; then
-      rotate_is_deletable=false
-    fi
-
-    # Remove the final trash (/<dev>/.trash).
-    # - This directory was the first trash (/dev/.trash0) at some
-    #   point in the past (until whenever the user last rotated).
-    # - Note that rm_rotate is not time-based or anything (though
-    #   you could wire it to cron, eh): It rotates only when user
-    #   runs `rm_rotate`.
-    #   - COPYD/FTREQ: /tmp-like time-based automatic file deletion,
-    #     e.g., check daily and /bin/rm any file that has not been
-    #     used in X days, perhaps 30d like macOS uses; or a lax 90.
-    # ∴ If user really wants to permantently remove what's in the
-    #   trash, they should run `rm_rotate` twice.
-    if [ -d "${final_path}" ]; then
-      # Check @macOS ACL permissions using Apple's `ls -e`, e.g.,
-      #   $ /bin/ls -le -d ~/.Trash
-      #   drwx------+ 207 user  staff  6624 Jul  8 21:58 /Users/user/.Trash
-      #    0: group:everyone deny delete
-      if ${rotate_is_deletable}; then
-        ${DRY_ECHO} command rm -rf -- "${final_path}"
-      else
-        # I.e., ~/.Trash
-        ${DRY_ECHO} command rm -rf -- "${final_path}"/*
-      fi
-    fi
-
-    # Defer creating final trash (/<dev>/.trash) if first trash
-    # (/<dev>/.trash0) currently empty.
-    if [ -z "$(command ls -- "${first_path}")" ]; then
-
-      return
-    fi
-
-    # First trash not empty. Move to final directory (which will be
-    # deleted on next rm_rotate). Then create a new first directory.
-    if ${first_path_is_deletable} && ${rotate_is_deletable}; then
-      ${DRY_ECHO} command mv -- "${first_path}" "${final_path}"
-      ${DRY_ECHO} command touch -- "${final_path}"
-      ${DRY_ECHO} command mkdir -p -- "${first_path}"
-    else
-      # SAVVY: Because ACL, cannot delete (or rename) ~/.Trash
-      # This `mkdir` unnecessary but just to be clear.
-      ${DRY_ECHO} command mkdir -p -- "${final_path}"
-      # BWARE: Note the mv'ing ".*" includes "." and "..", which
-      # generates warnings, e.g., on Linux:
-      #   $ command mv -- foo/* foo/.* bar
-      #   mv: cannot move 'foo/.' to 'bar/.': Device or resource busy
-      #   mv: 'foo/..' and 'bar/..' are the same file
-      # Or on macOS:
-      #   $ command mv -- foo/* foo/.* bar
-      #   mv: rename foo/. to bar/.: Invalid argument
-      #   mv: foo/.. and bar/.. are identical
-      # - If we limit this script to Bash, we could use dotglob, e.g.,
-      #     #!/usr/bin/env bash
-      #     ...
-      #     local old_dot_glob
-      #     old_dot_glob="$(shopt -p dotglob)"
-      #     shopt -s dotglob
-      #     command mv -- "${first_path}"/* "${final_path}"
-      #     eval "${old_dot_glob}"
-      # - Better yet, for POSIX compatibility, use `find`:
-      ${DRY_ECHO} \
-        find "${first_path}" -mindepth 1 -maxdepth 1 -name "*" \
-        -exec $(gnu_mv) -t "${final_path}" {} \+
-    fi
-
-    _sh_rm_safe_init_trash_dirs "${first_path}" "${final_path}"
-  }
-
   _rm_rotate_enumerate_devices
+}
+
+_rm_rotate_enumerate_devices() {
+  if command -v findmnt >/dev/null; then
+    local device_path=""
+    for device_path in $(
+      findmnt -l -t fuse.gocryptfs,fuse.encfs,ext4 -o TARGET --noheadings |
+        grep -v "^/boot" |
+        sort
+    ); do
+      _rm_rotate_rotate_device_trash "${device_path}"
+    done
+  else
+    # @macOS, etc.
+    _rm_rotate_rotate_device_trash "/"
+  fi
+}
+
+# ***
+
+_rm_rotate_rotate_device_trash() {
+  local device_path="$1"
+
+  # E.g., ~/.trash0
+  local first_path
+  # E.g., ~/.trash
+  local final_path
+
+  if [ "${device_path}" = "/" ]; then
+    first_path="${RM_SAFE_TRASH_HOME}/${first_trash}"
+    final_path="${RM_SAFE_TRASH_HOME}/${final_trash}"
+  else
+    first_path="${device_path}/${first_trash}"
+    final_path="${device_path}/${final_trash}"
+  fi
+
+  # Tailings, as in residue, as in the this path might be
+  # considered residue. For example, maybe the final path
+  # *used* to exist, but the user later disabled trash by
+  # deleting it, but forgot to cleanup the first path dir.
+  _rm_rotate_alert_tailings() {
+    if ${RM_SAFE_INHIBIT_ALERT_TAILINGS:=false} &&
+      [ -e "${first_path}" ]; then
+      echo "- Also be aware tailings at ‘${first_path}’"
+    fi
+  }
+
+  if [ ! -d "${final_path}" ]; then
+    # There's no "final" trash (i.e., the contemporary /<dev>/.trash is absent)
+    # on this device, which means rm_safe is "disabled" on this device
+    # (though we alert if the ${first_trash} exists (e.g., /<dev>/.trash0)).
+    # CRUMB: #_new_item
+    local leader=""
+    echo "${leader} $(fg_lightmagenta)Skipping$(attr_reset): Nothing at: $(
+      _rmr_print_path_stylized "${device_path}" "${final_trash}"
+    )"
+    _rm_rotate_alert_tailings
+
+    return 0
+  elif [ -h "${final_path}" ]; then
+    # The "final" trash is a symlink (though we don't verify its target).
+    # UCASE: The typical use case is to symlink /<dev>/.trash to the main
+    # home device ~/.trash; then files are mv'd to the main trash on rm.
+    # - Similarly to when /<dev>/.trash is absent, tell the user when
+    #   first_trash (e.g., /<dev>/.trash0) exists.
+    # - Note we (obviously) don't empty the symlink target; we assume that
+    #   happens on another loop (and if the symlink is *not* to a
+    #   /<dev>/.trash[0]/ directory, well, that's the user's concern).
+    echo "SKIPD: Disregarding symlink ‘${final_path}’"
+    echo "- With final destination at ‘$(realpath -- "${final_path}")’"
+    _rm_rotate_alert_tailings
+
+    return 0
+  fi
+
+  _sh_rm_rotate_print_stats "${first_path}" "${final_path}"
+
+  if ${do_report}; then
+
+    return 0
+  fi
+
+  local yes_or_no=""
+  printf %s "Empty ‘${final_path}’, and replace with trash from ‘${first_path}’? [y/n] "
+  read yes_or_no
+
+  # Bash-specific: [ "${yes_or_no^^}" = "Y" ]. POSIX-compatible:
+  if [ "$(first_char_capped ${yes_or_no})" != "Y" ]; then
+    if [ -z "${yes_or_no}" ]; then
+      echo
+    fi
+    # REFER: https://en.wikipedia.org/wiki/Sorry_Ma,_Forgot_to_Take_Out_the_Trash
+    echo "SKIPD: Sorry Ma, left trash ‘${first_path}’"
+
+    return 0
+  fi
+
+  local first_path_is_deletable=true
+  if ! _rm_rotate_acl_can_delete_directory "${first_path}"; then
+    first_path_is_deletable=false
+  fi
+
+  local rotate_is_deletable=true
+  if ! _rm_rotate_acl_can_delete_directory "${final_path}"; then
+    rotate_is_deletable=false
+  fi
+
+  # Remove the final trash (/<dev>/.trash).
+  # - This directory was the first trash (/dev/.trash0) at some
+  #   point in the past (until whenever the user last rotated).
+  # - Note that rm_rotate is not time-based or anything (though
+  #   you could wire it to cron, eh): It rotates only when user
+  #   runs `rm_rotate`.
+  #   - COPYD/FTREQ: /tmp-like time-based automatic file deletion,
+  #     e.g., check daily and /bin/rm any file that has not been
+  #     used in X days, perhaps 30d like macOS uses; or a lax 90.
+  # ∴ If user really wants to permantently remove what's in the
+  #   trash, they should run `rm_rotate` twice.
+  if [ -d "${final_path}" ]; then
+    # Check @macOS ACL permissions using Apple's `ls -e`, e.g.,
+    #   $ /bin/ls -le -d ~/.Trash
+    #   drwx------+ 207 user  staff  6624 Jul  8 21:58 /Users/user/.Trash
+    #    0: group:everyone deny delete
+    if ${rotate_is_deletable}; then
+      ${DRY_ECHO} command rm -rf -- "${final_path}"
+    else
+      # I.e., ~/.Trash
+      ${DRY_ECHO} command rm -rf -- "${final_path}"/*
+    fi
+  fi
+
+  # Defer creating final trash (/<dev>/.trash) if first trash
+  # (/<dev>/.trash0) currently empty.
+  if [ -z "$(command ls -- "${first_path}")" ]; then
+
+    return
+  fi
+
+  # First trash not empty. Move to final directory (which will be
+  # deleted on next rm_rotate). Then create a new first directory.
+  if ${first_path_is_deletable} && ${rotate_is_deletable}; then
+    ${DRY_ECHO} command mv -- "${first_path}" "${final_path}"
+    ${DRY_ECHO} command touch -- "${final_path}"
+    ${DRY_ECHO} command mkdir -p -- "${first_path}"
+  else
+    # SAVVY: Because ACL, cannot delete (or rename) ~/.Trash
+    # This `mkdir` unnecessary but just to be clear.
+    ${DRY_ECHO} command mkdir -p -- "${final_path}"
+    # BWARE: Note the mv'ing ".*" includes "." and "..", which
+    # generates warnings, e.g., on Linux:
+    #   $ command mv -- foo/* foo/.* bar
+    #   mv: cannot move 'foo/.' to 'bar/.': Device or resource busy
+    #   mv: 'foo/..' and 'bar/..' are the same file
+    # Or on macOS:
+    #   $ command mv -- foo/* foo/.* bar
+    #   mv: rename foo/. to bar/.: Invalid argument
+    #   mv: foo/.. and bar/.. are identical
+    # - If we limit this script to Bash, we could use dotglob, e.g.,
+    #     #!/usr/bin/env bash
+    #     ...
+    #     local old_dot_glob
+    #     old_dot_glob="$(shopt -p dotglob)"
+    #     shopt -s dotglob
+    #     command mv -- "${first_path}"/* "${final_path}"
+    #     eval "${old_dot_glob}"
+    # - Better yet, for POSIX compatibility, use `find`:
+    ${DRY_ECHO} \
+      find "${first_path}" -mindepth 1 -maxdepth 1 -name "*" \
+      -exec $(gnu_mv) -t "${final_path}" {} \+
+  fi
+
+  _sh_rm_safe_init_trash_dirs "${first_path}" "${final_path}"
 }
 
 # ***
