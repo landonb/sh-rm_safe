@@ -229,8 +229,11 @@ rm_rotate() {
       # There's no "final" trash (i.e., the contemporary /<dev>/.trash is absent)
       # on this device, which means rm_safe is "disabled" on this device
       # (though we alert if the ${first_trash} exists (e.g., /<dev>/.trash0)).
-      echo "SKIPD: No trash found under ‘${device_path}’"
-      echo "- At least nothing found at ‘${final_path}’"
+      # CRUMB: #_new_item
+      local leader=""
+      echo "${leader} $(fg_lightmagenta)Skipping$(attr_reset): Nothing at: $(
+        _rmr_print_path_stylized "${device_path}" "${final_trash}"
+      )"
       _rm_rotate_alert_tailings
 
       return 0
@@ -424,6 +427,49 @@ gnu_mv() {
 
 os_is_macos() {
   [ "$(uname)" = "Darwin" ]
+}
+
+_rmr_print_path_stylized() {
+  local device_path="$1"
+  local trash_dir="$2"
+
+  if test -z "${trash_dir}"; then
+    trash_dir="$(basename -- "${device_path}")"
+    device_path="$(dirname -- "${device_path}")"
+  fi
+
+  echo "$(
+    fg_lightorange
+  )$(echo "${device_path}" | _rmr_tilde_for_home)/$(
+    attr_reset
+  )$(
+    fg_lightblue
+  )${trash_dir}$(
+    attr_reset
+  )"
+}
+
+# COPYD: Less robust tilde swapper:
+#   ~/.kit/git/git-smart/bin/git-sign-help
+#   ~/.kit/sh/sh-rm_safe/bin/rm_rotate
+# - Canon code:
+#   ~/.kit/sh/sh-logger/bin/logger.sh
+_rmr_tilde_for_home() {
+  _rmr_gnu_sed() {
+    if command -v gsed 2>/dev/null ||
+      command -v sed 2>/dev/null; then
+
+      return
+    fi
+
+    >&2 echo "ERROR: (g)sed absent!"
+
+    echo "_rmr_nullary_cat"
+  }
+
+  _rmr_nullary_cat() { cat; }
+
+  $(_rmr_gnu_sed) -E "s#^${HOME}(/|$)#~\1#"
 }
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
