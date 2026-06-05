@@ -136,6 +136,26 @@ DRY_ECHO=""
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
 
+# DUNNO/2026-06-05: Author does not recall why rm_safe source_deps
+# is a POSIX- and any-realpath-friendly nightmare, and rm_safe is
+# a Bash script; while this script uses the simpler source_deps
+# approach and is POSIX- (e.g., dash-) friendly.
+_rm_rotate_source_deps() {
+  source_dep "deps/sh-colors/bin/colors.sh"
+}
+
+source_dep() {
+  local dep_path="$(dirname -- "$(realpath -- "$0")")/../$1"
+
+  ! . "${dep_path}" 2>/dev/null || return 0
+
+  >&2 echo "ERROR: ‘$(basename -- "$0")’ failed to find or source: ${dep_path}"
+
+  exit_1
+}
+
+# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
+
 rm_rotate() {
   local first_trash="${RM_SAFE_FIRST_TRASH}"
   local final_trash="${RM_SAFE_FINAL_TRASH}"
@@ -447,6 +467,8 @@ main() {
   _rm_rotate_set_traps
 
   _rm_rotate_set_environs
+
+  _rm_rotate_source_deps
 
   rm_rotate "$@"
 
