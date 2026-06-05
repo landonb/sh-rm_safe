@@ -320,6 +320,7 @@ _sh_rm_safe_init_trash_dirs() {
 
   for trash_path in "$@"; do
     _sh_rm_safe_ensure_trash_dir_with_proper_permissions "${trash_path}"
+    _sh_rm_safe_created_locked_git_repo "${trash_path}"
   done
 }
 
@@ -342,6 +343,34 @@ _sh_rm_safe_ensure_trash_dir_with_proper_permissions() {
       >&2 echo "ERROR: You may need to enable Full Disk Access on your terminal app"
     fi
   fi
+}
+
+# HSTRY/2026-06-04: This is silly! But I like it.
+# - Use case: Just in case you run a Git within a trash dir, so
+#   you're not confused. Also because if you were to rm a .git/
+#   dir. at some point, that would "become" the trash Git repo.
+_sh_rm_safe_created_locked_git_repo() {
+  local trash_dir="$1"
+
+  (
+    cd -- "${trash_dir}"
+
+    local pre_commit_hook=".git/hooks/pre-commit"
+
+    if test -f "${pre_commit_hook}"; then
+
+      return
+    fi
+
+    ${DRY_ECHO} command git init . -q
+    ${DRY_ECHO} command git commit --allow-empty -m "trash" -q
+    cat <<EOF >"${pre_commit_hook}"
+#!/bin/sh
+echo "Error: This repository is locked. Commits are disabled."
+exit 1
+EOF
+    ${DRY_ECHO} chmod +x -- "${pre_commit_hook}"
+  )
 }
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
