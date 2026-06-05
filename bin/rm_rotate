@@ -128,9 +128,13 @@ set_environs() {
 # - Whatever terminal app you use on @macOS, it must have the
 #   Full Disk Access permission to view the ~/.Trash directory
 
+# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
+
 DRY_ECHO=""
 # Uncomment for trace with rotate:
 #  DRY_ECHO="echo"
+
+# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
 
 rm_rotate() {
   local first_trash="${RM_SAFE_FIRST_TRASH}"
