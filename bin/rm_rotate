@@ -140,6 +140,14 @@ DRY_ECHO=""
 # is a POSIX- and any-realpath-friendly nightmare, and rm_safe is
 # a Bash script; while this script uses the simpler source_deps
 # approach and is POSIX- (e.g., dash-) friendly.
+
+# DEVEL: Test from plain env. to ensure your shell (Homefries, DepoXy)
+# doesn't mask missing deps:
+#
+#   $ cd ~/.kit/sh/sh-rm_safe
+#   $ env -i HOME="$HOME" LOGNAME="$LOGNAME" bash --noprofile --norc
+#   $ bin/rm_rotate
+
 _rm_rotate_source_deps() {
   source_dep "deps/sh-colors/bin/colors.sh"
 }
