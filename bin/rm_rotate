@@ -315,11 +315,11 @@ _sh_rm_safe_ensure_trash_dir_with_proper_permissions() {
 
   command mkdir -p -- "${trash_dir}"
 
-  command chmod 700 "${trash_dir}"
+  command chmod 700 -- "${trash_dir}"
 
   if os_is_macos; then
     # Ensure ~/.Trash0 permissions like ~/.Trash
-    if ! command chmod +a "group:everyone deny delete" "${trash_dir}"; then
+    if ! command chmod +a "group:everyone deny delete" -- "${trash_dir}"; then
       # E.g.,
       #   chmod: Failed to set ACL on file '/Users/puck/.Trash':
       #     Operation not permitted
