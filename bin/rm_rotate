@@ -165,12 +165,14 @@ source_dep() {
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
 
 _rm_rotate_print_usage() {
-  echo "USAGE: rm_rotate [-h|--help]"
+  echo "USAGE: rm_rotate [-h|--help] [-r|--report]"
 
   exit_0
 }
 
 _rm_rotate_parse_args() {
+  do_report=false
+
   while [ $# -gt 0 ]; do
     case $1 in
     -h | --help)
@@ -178,7 +180,10 @@ _rm_rotate_parse_args() {
 
       exit 0
       ;;
-    *)
+    -r | --report)
+      do_report=true
+      ;;
+    -* | --*)
       >&2 echo "ERROR: Unrecognized argument: “$1”"
 
       exit_1
@@ -281,6 +286,11 @@ rm_rotate() {
     fi
 
     _sh_rm_rotate_print_stats "${first_path}" "${final_path}"
+
+    if ${do_report}; then
+
+      return 0
+    fi
 
     local yes_or_no=""
     printf %s "Empty ‘${final_path}’, and replace with trash from ‘${first_path}’? [y/n] "
@@ -650,6 +660,7 @@ main() {
 
   _rm_rotate_source_deps
 
+  local do_report=false
   _rm_rotate_parse_args "$@"
 
   rm_rotate "$@"
