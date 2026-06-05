@@ -139,11 +139,11 @@ rm_rotate() {
   _rm_rotate_acl_can_delete_directory() {
     local test_path="$1"
 
-    # Check @macOS ACL permissions using Apple ls's -e, e.g.,
+    # Check @macOS ACL permissions using Apple's `ls -e,` e.g.,
     #   $ /bin/ls -le -d ~/.Trash
     #   drwx------+ 207 user  staff  6624 Jul  8 21:58 /Users/user/.Trash
     #    0: group:everyone deny delete
-    # - Note also the '+' after flags to indicate ACL perms.
+    # - Note the '+' after mode bits (drwx------+) to indicate ACL perms.
     ! (
       /bin/ls -le -d "${test_path}" 2>/dev/null |
         grep -q -e "group:everyone deny delete"
@@ -194,16 +194,23 @@ rm_rotate() {
     }
 
     if [ ! -d "${final_path}" ]; then
-      # There's no "final" trash (i.e., the contemporary ~/.trash is absent)
-      # on this device, which means we're "disabled" (and we don't care if
-      # the ${first_trash} exists or not (e.g., ~/.trash0)).
+      # There's no "final" trash (i.e., the contemporary /<dev>/.trash is absent)
+      # on this device, which means rm_safe is "disabled" on this device
+      # (though we alert if the ${first_trash} exists (e.g., /<dev>/.trash0)).
       echo "SKIPD: No trash found under ‘${device_path}’"
       echo "- At least nothing found at ‘${final_path}’"
       _rm_rotate_alert_tailings
 
       return 0
     elif [ -h "${final_path}" ]; then
-      # UCASE: Symlink to trash on another device (emptied on another loop).
+      # The "final" trash is a symlink (though we don't verify its target).
+      # UCASE: The typical use case is to symlink /<dev>/.trash to the main
+      # home device ~/.trash; then files are mv'd to the main trash on rm.
+      # - Similarly to when /<dev>/.trash is absent, tell the user when
+      #   first_trash (e.g., /<dev>/.trash0) exists.
+      # - Note we (obviously) don't empty the symlink target; we assume that
+      #   happens on another loop (and if the symlink is *not* to a
+      #   /<dev>/.trash[0]/ directory, well, that's the user's concern).
       echo "SKIPD: Disregarding symlink ‘${final_path}’"
       echo "- With final destination at ‘$(realpath -- "${final_path}")’"
       _rm_rotate_alert_tailings
@@ -242,10 +249,13 @@ rm_rotate() {
     # - Note that rm_rotate is not time-based or anything (though
     #   you could wire it to cron, eh): It rotates only when user
     #   runs `rm_rotate`.
+    #   - COPYD/FTREQ: /tmp-like time-based automatic file deletion,
+    #     e.g., check daily and /bin/rm any file that has not been
+    #     used in X days, perhaps 30d like macOS uses; or a lax 90.
     # ∴ If user really wants to permantently remove what's in the
     #   trash, they should run `rm_rotate` twice.
     if [ -d "${final_path}" ]; then
-      # Check @macOS ACL permissions using Apple ls's -e, e.g.,
+      # Check @macOS ACL permissions using Apple's `ls -e`, e.g.,
       #   $ /bin/ls -le -d ~/.Trash
       #   drwx------+ 207 user  staff  6624 Jul  8 21:58 /Users/user/.Trash
       #    0: group:everyone deny delete
@@ -265,8 +275,7 @@ rm_rotate() {
     fi
 
     # First trash not empty. Move to final directory (which will be
-    # deleted on next rm_rotate), and then create a new first directory.
-
+    # deleted on next rm_rotate). Then create a new first directory.
     if ${first_path_is_deletable} && ${rotate_is_deletable}; then
       ${DRY_ECHO} command mv -- "${first_path}" "${final_path}"
       ${DRY_ECHO} command touch -- "${final_path}"
