@@ -253,6 +253,8 @@ rm_rotate() {
       return 0
     fi
 
+    _sh_rm_rotate_print_stats "${first_path}" "${final_path}"
+
     local yes_or_no=""
     printf %s "Empty ‘${final_path}’, and replace with trash from ‘${first_path}’? [y/n] "
     read yes_or_no
@@ -346,6 +348,103 @@ rm_rotate() {
   }
 
   _rm_rotate_enumerate_devices
+}
+
+# ***
+
+_sh_rm_rotate_print_stats() {
+  local trash_path
+
+  for trash_path in "$@"; do
+    _rm_rotate_print_trash_stats "${trash_path}"
+  done
+}
+
+_rm_rotate_print_trash_stats() {
+  local trash_path="$1"
+
+  # CRUMB: #_new_item
+  local leader=""
+  echo "${leader} $(fg_lightgreen)Rotating$(attr_reset) <dev>/trash: $(_rmr_print_path_stylized "${trash_path}")"
+
+  if ! test -d "${trash_path}"; then
+
+    return
+  fi
+
+  local latest_epoch
+  local create_date
+  local create_epoch
+  local rotate_date
+  local rotate_epoch
+  local lifespan
+
+  rotate_date="$(command date -r "${trash_path}" "+%Y-%m-%d")"
+  rotate_epoch="$($(_rmr_gnu_stat) -c %Y "${trash_path}")"
+
+  latest_epoch="$(date "+%s")"
+  since_rotate="$(printf "%4dd" "$(((latest_epoch - rotate_epoch) / 86400))")"
+
+  if test -d "${trash_path}/.git"; then
+    create_date="$(command date -r "${trash_path}/.git" "+%Y-%m-%d")"
+    # AWARE: Using BSD/Apple stat, it's `stat -f %m <path>` for epoch seconds.
+    create_epoch="$($(_rmr_gnu_stat) -c %Y "${trash_path}/.git")"
+    if ${RM_SAFE_STATS_SHRUGGIE:-true}; then
+      lifespan="$(printf "%4dd  /" "$(((rotate_epoch - create_epoch) / 86400))")"
+    else
+      lifespan="$(printf "%4dd /" "$(((rotate_epoch - create_epoch) / 86400))")"
+    fi
+  else
+    # ...._date="YYYY-MM-DD"
+    create_date="<Beats me>"
+    create_epoch="${rotate_epoch}"
+    if ${RM_SAFE_STATS_SHRUGGIE:-true}; then
+      lifespan="¯\_㋡_/¯"
+    else
+      lifespan="  🤷d /"
+    fi
+  fi
+
+  # SYNON: Length of time, Term, Lifespan, Lifetime, Stretch, Duration, Aeon, Days, Span, Lasting.
+  printf "%s Created: %s / Term: %s Rotated: %s (%s ago) / Items: %7d / Mbytes: %sM\n" \
+    "  -" \
+    "${create_date}" \
+    "${lifespan}" \
+    "${rotate_date}" \
+    "${since_rotate}" \
+    "$(find "${trash_path}" -mindepth 1 -maxdepth 1 | wc -l)" \
+    "$(_rmr_stats_print_size_mb "${trash_path}")"
+}
+
+# Print file size.
+# - Linux GNU and Homebrew gstat: (g)stat -c %s <path>
+# - Avoid: Raw BSD macOS stat is: stat -f %z <path>
+# - COPYD: print_ctags_report():
+#   ~/.depoxy/ambers/home/.projlns/infuse-projlns-core.sh @ 216
+_rmr_stats_print_size_mb() {
+  local path="$1"
+
+  # Aside: For individual file Mbytes:
+  #   echo "scale=0; $($(_rmr_gnu_stat) -c %s "${path}") / 1024 / 1024" | bc -l
+  # Savvy: Note `du -sm` prints "1" for empty dir (`du`, `du -h` prints
+  # "4.0K"), but `du -sb` prints "0".
+  # - So not this:
+  #   command du -sm "${path}" | awk '{print $1}' | numfmt --grouping
+  echo "scale=0; $(command du -sb "${path}" | awk '{print $1}') / 1024" | bc -l |
+    numfmt --grouping
+}
+
+# - COPYD: gnu_stat():
+#   ~/.depoxy/ambers/home/.projlns/infuse-projlns-core.sh @ 245
+_rmr_gnu_stat() {
+  for cmd in "gstat" "stat"; do
+    (
+      unset -f ${cmd}
+      unalias ${cmd}
+      command -v ${cmd}
+    ) 2>/dev/null &&
+      break
+  done
 }
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
