@@ -200,21 +200,8 @@ rm_rotate() {
   local first_trash="${RM_SAFE_FIRST_TRASH}"
   local final_trash="${RM_SAFE_FINAL_TRASH}"
 
-  _rm_rotate_acl_can_delete_directory() {
-    local test_path="$1"
-
-    # Check @macOS ACL permissions using Apple's `ls -e,` e.g.,
-    #   $ /bin/ls -le -d ~/.Trash
-    #   drwx------+ 207 user  staff  6624 Jul  8 21:58 /Users/user/.Trash
-    #    0: group:everyone deny delete
-    # - Note the '+' after mode bits (drwx------+) to indicate ACL perms.
-    ! (
-      /bin/ls -le -d "${test_path}" 2>/dev/null |
-        grep -q -e "group:everyone deny delete"
-    )
-  }
-
   _rm_rotate_enumerate_devices() {
+    # Crumb: rm_rotate starts here
     if command -v findmnt >/dev/null; then
       local device_path=""
       for device_path in $(
@@ -229,6 +216,8 @@ rm_rotate() {
       _rm_rotate_rotate_device_trash "/"
     fi
   }
+
+  # ***
 
   _rm_rotate_rotate_device_trash() {
     local device_path="$1"
@@ -482,6 +471,22 @@ _rmr_gnu_stat() {
     ) 2>/dev/null &&
       break
   done
+}
+
+# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
+
+_rm_rotate_acl_can_delete_directory() {
+  local test_path="$1"
+
+  # Check @macOS ACL permissions using Apple's `ls -e,` e.g.,
+  #   $ /bin/ls -le -d ~/.Trash
+  #   drwx------+ 207 user  staff  6624 Jul  8 21:58 /Users/user/.Trash
+  #    0: group:everyone deny delete
+  # - Note the '+' after mode bits (drwx------+) to indicate ACL perms.
+  ! (
+    /bin/ls -le -d "${test_path}" 2>/dev/null |
+      grep -q -e "group:everyone deny delete"
+  )
 }
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
