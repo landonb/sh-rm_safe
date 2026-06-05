@@ -5,6 +5,9 @@
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
 
+# OVIEW: Rotate trashes, e.g., since rm_safe moves files to ~/.trash0,
+# we rm ~/.trash, rename ~/.trash0 → ~/.trash, and recreate ~/.trash0.
+
 RM_SAFE_TRASH_HOME="${RM_SAFE_TRASH_HOME:-${HOME}}"
 
 # USYNC: In lieu of sourcing a common lib file, keep
@@ -166,7 +169,9 @@ rm_rotate() {
   _rm_rotate_rotate_device_trash() {
     local device_path="$1"
 
+    # E.g., ~/.trash0
     local first_path
+    # E.g., ~/.trash
     local final_path
 
     if [ "${device_path}" = "/" ]; then
