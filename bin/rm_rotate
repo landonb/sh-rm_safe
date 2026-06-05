@@ -221,9 +221,9 @@ rm_rotate() {
       return 0
     fi
 
-    local trash_is_deletable=true
+    local first_path_is_deletable=true
     if ! _rm_rotate_acl_can_delete_directory "${first_path}"; then
-      trash_is_deletable=false
+      first_path_is_deletable=false
     fi
 
     local rotate_is_deletable=true
@@ -261,7 +261,7 @@ rm_rotate() {
     # First trash not empty. Move to final directory (which will be
     # deleted on next rm_rotate), and then create a new first directory.
 
-    if ${trash_is_deletable} && ${rotate_is_deletable}; then
+    if ${first_path_is_deletable} && ${rotate_is_deletable}; then
       ${DRY_ECHO} command mv -- "${first_path}" "${final_path}"
       ${DRY_ECHO} command touch -- "${final_path}"
       ${DRY_ECHO} command mkdir -p -- "${first_path}"
