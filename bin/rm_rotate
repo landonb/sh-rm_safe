@@ -177,14 +177,31 @@ rm_rotate() {
       final_path="${device_path}/${final_trash}"
     fi
 
+    # Tailings, as in residue, as in the this path might be
+    # considered residue. For example, maybe the final path
+    # *used* to exist, but the user later disabled trash by
+    # deleting it, but forgot to cleanup the first path dir.
+    _rm_rotate_alert_tailings() {
+      if ${RM_SAFE_INHIBIT_ALERT_TAILINGS:=false} &&
+        [ -e "${first_path}" ]; then
+        echo "- Also be aware tailings at ‘${first_path}’"
+      fi
+    }
+
     if [ ! -d "${final_path}" ]; then
+      # There's no "final" trash (i.e., the contemporary ~/.trash is absent)
+      # on this device, which means we're "disabled" (and we don't care if
+      # the ${first_trash} exists or not (e.g., ~/.trash0)).
       echo "SKIPD: No trash found under ‘${device_path}’"
       echo "- At least nothing found at ‘${final_path}’"
+      _rm_rotate_alert_tailings
 
       return 0
     elif [ -h "${final_path}" ]; then
+      # UCASE: Symlink to trash on another device (emptied on another loop).
       echo "SKIPD: Disregarding symlink ‘${final_path}’"
       echo "- With final destination at ‘$(realpath -- "${final_path}")’"
+      _rm_rotate_alert_tailings
 
       return 0
     fi
