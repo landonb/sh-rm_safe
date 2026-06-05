@@ -164,6 +164,33 @@ source_dep() {
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
 
+_rm_rotate_print_usage() {
+  echo "USAGE: rm_rotate [-h|--help]"
+
+  exit_0
+}
+
+_rm_rotate_parse_args() {
+  while [ $# -gt 0 ]; do
+    case $1 in
+    -h | --help)
+      _rm_rotate_print_usage
+
+      exit 0
+      ;;
+    *)
+      >&2 echo "ERROR: Unrecognized argument: “$1”"
+
+      exit_1
+      ;;
+    esac
+
+    shift
+  done
+}
+
+# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
+
 rm_rotate() {
   local first_trash="${RM_SAFE_FIRST_TRASH}"
   local final_trash="${RM_SAFE_FINAL_TRASH}"
@@ -622,6 +649,8 @@ main() {
   _rm_rotate_set_environs
 
   _rm_rotate_source_deps
+
+  _rm_rotate_parse_args "$@"
 
   rm_rotate "$@"
 
