@@ -493,7 +493,14 @@ _rm_rotate_print_trash_stats_path() {
 _rm_rotate_print_trash_stats_stats() {
   local trash_path="$1"
 
+  local pipec=" "
+  ! ${is_first_path} || pipec="┃"
+
   if ! test -d "${trash_path}"; then
+    # ALTLY: Instead of " (absent)" appended above, its own line:
+    #   printf "%s %s\n" \
+    #     "  ${pipec} ┗━━" \
+    #     "$(fg_lightgreen)Missing$(attr_reset)"
 
     return
   fi
@@ -530,9 +537,6 @@ _rm_rotate_print_trash_stats_stats() {
       lifespan="  🤷d /"
     fi
   fi
-
-  local pipec=" "
-  ! ${is_first_path} || pipec="┃"
 
   # SYNON: Length of time, Term, Lifespan, Lifetime, Stretch, Duration, Aeon, Days, Span, Lasting.
   printf "%s %s %s / %s %s %s %s (%s ago) / %s %7d / %s %sM%s\n" \
