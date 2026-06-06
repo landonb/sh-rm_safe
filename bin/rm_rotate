@@ -370,17 +370,7 @@ _rm_rotate_rotate_device_trash() {
     return 0
   fi
 
-  local yes_or_no=""
-  printf %s "Empty ‘${final_path}’, and replace with trash from ‘${first_path}’? [y/n] "
-  read yes_or_no
-
-  # Bash-specific: [ "${yes_or_no^^}" = "Y" ]. POSIX-compatible:
-  if [ "$(first_char_capped ${yes_or_no})" != "Y" ]; then
-    if [ -z "${yes_or_no}" ]; then
-      echo
-    fi
-    # REFER: https://en.wikipedia.org/wiki/Sorry_Ma,_Forgot_to_Take_Out_the_Trash
-    echo "SKIPD: Sorry Ma, left trash ‘${first_path}’"
+  if ! _sh_rm_rotate_must_prompt_user_okay_to_proceed "${first_path}" "${final_path}"; then
 
     return 0
   fi
@@ -579,6 +569,28 @@ _rmr_gnu_stat() {
     ) 2>/dev/null &&
       break
   done
+}
+
+# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
+
+_sh_rm_rotate_must_prompt_user_okay_to_proceed() {
+  local first_path="$1"
+  local final_path="$2"
+
+  local yes_or_no=""
+  printf %s "Empty ‘${final_path}’, and replace with trash from ‘${first_path}’? [y/n] "
+  read yes_or_no
+
+  # Bash-specific: [ "${yes_or_no^^}" = "Y" ]. POSIX-compatible:
+  if [ "$(first_char_capped ${yes_or_no})" != "Y" ]; then
+    if [ -z "${yes_or_no}" ]; then
+      echo
+    fi
+    # REFER: https://en.wikipedia.org/wiki/Sorry_Ma,_Forgot_to_Take_Out_the_Trash
+    echo "SKIPD: Sorry Ma, left trash ‘${first_path}’"
+
+    return 1
+  fi
 }
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
