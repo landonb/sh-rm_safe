@@ -261,7 +261,9 @@ _rm_rotate_rotate_device_trash() {
       local leader=""
       local action="Skipping"
       ! ${do_report} || action="Disabled"
-      echo "${leader} $(fg_lightmagenta)${action}$(attr_reset): Nothing at: $(
+      echo "${leader} $(fg_lightmagenta)${action}:$(
+        attr_reset
+      ) $(fg_lightgray)Nothing at:$(attr_reset) $(
         _rmr_print_path_stylized "${device_path}" "${final_trash}"
       )"
       _rm_rotate_alert_tailings
@@ -455,19 +457,20 @@ _rm_rotate_print_trash_stats() {
   ! ${is_first_path} || pipec="┃"
 
   # SYNON: Length of time, Term, Lifespan, Lifetime, Stretch, Duration, Aeon, Days, Span, Lasting.
-  printf "%s %s %s / %s %s %s %s (%s ago) / %s %7d / %s %sM\n" \
+  printf "%s %s %s / %s %s %s %s (%s ago) / %s %7d / %s %sM%s\n" \
     "  ${pipec} ┗━━" \
-    "Created:" \
+    "$(fg_lightgreen)Created:$(fg_lightyellow)" \
     "${create_date}" \
-    "Term:" \
+    "$(fg_lightgreen)Term:$(fg_lightyellow)" \
     "${lifespan}" \
-    "Last Used:" \
+    "$(fg_lightgreen)Last Used:$(fg_lightyellow)" \
     "${rotate_date}" \
     "${since_rotate}" \
-    "Items:" \
+    "$(fg_lightgreen)Items:$(fg_lightyellow)" \
     "$(find "${trash_path}" -mindepth 1 -maxdepth 1 | wc -l)" \
-    "Mbytes:" \
-    "$(_rmr_stats_print_size_mb "${trash_path}")"
+    "$(fg_lightgreen)Mbytes:$(fg_lightyellow)" \
+    "$(_rmr_stats_print_size_mb "${trash_path}")" \
+    "$(attr_reset)"
 }
 
 # Print file size.
