@@ -467,7 +467,14 @@ _sh_rm_rotate_print_stats() {
 _rm_rotate_print_trash_stats() {
   local trash_path="$1"
 
+  _rm_rotate_print_trash_stats_path "$@"
+  _rm_rotate_print_trash_stats_stats "$@"
+}
+
+_rm_rotate_print_trash_stats_path() {
+  local trash_path="$1"
   if ${is_first_path}; then
+
     # CRUMB: #_new_item
     local leader=""
     local action="Rotating"
@@ -481,6 +488,10 @@ _rm_rotate_print_trash_stats() {
   local pipec="┗━"
   ! ${is_first_path} || pipec="┣━"
   echo "  ${pipec}┳━ $(_rmr_print_path_stylized "${trash_path}")"
+}
+
+_rm_rotate_print_trash_stats_stats() {
+  local trash_path="$1"
 
   if ! test -d "${trash_path}"; then
 
