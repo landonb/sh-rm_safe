@@ -367,7 +367,7 @@ _rm_rotate_rotate_device_trash() {
 
     return 0
   elif ! [ -d "${final_path}" ] && ! [ -d "${first_path}" ]; then
-    # There's no either trash on this device.
+    # Neither .trash/ nor .trash0/ on this device.
     if ! ${only_report_active}; then
       # CRUMB: #_new_item
       local leader=""
