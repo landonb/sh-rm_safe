@@ -573,7 +573,13 @@ _rmr_stats_print_size_mb() {
   # "4.0K"), but `du -sb` prints "0".
   # - So not this:
   #   command du -sm "${path}" | awk '{print $1}' | numfmt --grouping
-  echo "scale=0; $(command du -sb "${path}" | awk '{print $1}') / 1024" | bc -l |
+  # - Also note that --exclude applies to subdirs, so this not good:
+  #     command du -sb "${path}" --exclude=.git
+  #   So we'll send top-level paths minus .git/ to du.
+  echo "scale=0; $(
+    find "${path}" -maxdepth 1 -mindepth 1 ! -name ".git" -print0 |
+      du -sb --files0-from=- --total | tail -n 1 | awk '{print $1}'
+  ) / 1024" | bc -l |
     numfmt --grouping
 }
 
