@@ -538,7 +538,6 @@ _rm_rotate_print_trash_stats_stats() {
     fi
   fi
 
-  # SYNON: Length of time, Term, Lifespan, Lifetime, Stretch, Duration, Aeon, Days, Span, Lasting.
   printf "%s %s %s / %s %s %s %s (%s ago) / %s %7d / %s %sM%s\n" \
     "  ${pipec} ┗━━" \
     "$(fg_lightgreen)Created:$(fg_lightyellow)" \
