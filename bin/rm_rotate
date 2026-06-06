@@ -254,7 +254,9 @@ _rm_rotate_rotate_device_trash() {
     # (though we alert if the ${first_trash} exists (e.g., /<dev>/.trash0)).
     # CRUMB: #_new_item
     local leader=""
-    echo "${leader} $(fg_lightmagenta)Skipping$(attr_reset): Nothing at: $(
+    local action="Skipping"
+    ! ${do_report} || action="Disabled"
+    echo "${leader} $(fg_lightmagenta)${action}$(attr_reset): Nothing at: $(
       _rmr_print_path_stylized "${device_path}" "${final_trash}"
     )"
     _rm_rotate_alert_tailings
@@ -379,18 +381,31 @@ _rm_rotate_rotate_device_trash() {
 
 _sh_rm_rotate_print_stats() {
   local trash_path
+  local is_first_path=true
 
   for trash_path in "$@"; do
     _rm_rotate_print_trash_stats "${trash_path}"
+    is_first_path=false
   done
 }
 
 _rm_rotate_print_trash_stats() {
   local trash_path="$1"
 
-  # CRUMB: #_new_item
-  local leader=""
-  echo "${leader} $(fg_lightgreen)Rotating$(attr_reset) <dev>/trash: $(_rmr_print_path_stylized "${trash_path}")"
+  if ${is_first_path}; then
+    # CRUMB: #_new_item
+    local leader=""
+    local action="Rotating"
+    ! ${do_report} || action="rm_safe"
+    echo "${leader} $(fg_lightgreen)${action}$(
+      attr_reset
+    ) $(
+      fg_lightorange
+    )<dev>/$(attr_reset)$(fg_lightblue)trash$(attr_reset)"
+  fi
+  local pipec="┗━"
+  ! ${is_first_path} || pipec="┣━"
+  echo "  ${pipec}┳━ $(_rmr_print_path_stylized "${trash_path}")"
 
   if ! test -d "${trash_path}"; then
 
@@ -430,9 +445,12 @@ _rm_rotate_print_trash_stats() {
     fi
   fi
 
+  local pipec=" "
+  ! ${is_first_path} || pipec="┃"
+
   # SYNON: Length of time, Term, Lifespan, Lifetime, Stretch, Duration, Aeon, Days, Span, Lasting.
-  printf "%s Created: %s / Term: %s Rotated: %s (%s ago) / Items: %7d / Mbytes: %sM\n" \
-    "  -" \
+  printf "%s Created: %s / Term: %s Last Used: %s (%s ago) / Items: %7d / Mbytes: %sM\n" \
+    "  ${pipec} ┗━━" \
     "${create_date}" \
     "${lifespan}" \
     "${rotate_date}" \
