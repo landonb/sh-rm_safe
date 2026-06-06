@@ -430,47 +430,61 @@ _rm_rotate_rotate_device_trash() {
     fi
   fi
 
-  # Defer creating final trash (/<dev>/.trash) if first trash
+  # No need to create final trash (/<dev>/.trash) if first trash
   # (/<dev>/.trash0) currently empty.
-  if [ -z "$(command ls -- "${first_path}")" ]; then
-
-    return
-  fi
-
-  # First trash not empty. Move to final directory (which will be
-  # deleted on next rm_rotate). Then create a new first directory.
-  if ${first_path_is_deletable} && ${rotate_is_deletable}; then
-    ${DRY_ECHO} command mv -- "${first_path}" "${final_path}"
-    ${DRY_ECHO} command touch -- "${final_path}"
-    ${DRY_ECHO} command mkdir -p -- "${first_path}"
+  if ! [ -d "${first_path}" ]; then
+    # No first trash. To avoid rm_safe prompting user later, create it.
+    # - Otherwise on first `rm` (rm_safe), user is prompted to setup
+    #   device trash.
+    #   - This lets user proactively setup trash, e.g.:
+    #       mkdir .trash
+    #       rm_rotate .
+    #     Or even simply this will do it:
+    #       mkdir .trash0
+    #     But latter won't create the "locked" Git repo
+    #     (which is purely for vanity, and only adds the
+    #      lifespan value to the stats report; so it does
+    #      not matter whether user makes .trash, .trash0,
+    #      or runs `touch foo && rm foo` to setup trash).
+    _sh_rm_safe_init_trash_dirs "${first_path}"
   else
-    # SAVVY: Because ACL, cannot delete (or rename) ~/.Trash
-    # This `mkdir` unnecessary but just to be clear.
-    ${DRY_ECHO} command mkdir -p -- "${final_path}"
-    # BWARE: Note the mv'ing ".*" includes "." and "..", which
-    # generates warnings, e.g., on Linux:
-    #   $ command mv -- foo/* foo/.* bar
-    #   mv: cannot move 'foo/.' to 'bar/.': Device or resource busy
-    #   mv: 'foo/..' and 'bar/..' are the same file
-    # Or on macOS:
-    #   $ command mv -- foo/* foo/.* bar
-    #   mv: rename foo/. to bar/.: Invalid argument
-    #   mv: foo/.. and bar/.. are identical
-    # - If we limit this script to Bash, we could use dotglob, e.g.,
-    #     #!/usr/bin/env bash
-    #     ...
-    #     local old_dot_glob
-    #     old_dot_glob="$(shopt -p dotglob)"
-    #     shopt -s dotglob
-    #     command mv -- "${first_path}"/* "${final_path}"
-    #     eval "${old_dot_glob}"
-    # - Better yet, for POSIX compatibility, use `find`:
-    ${DRY_ECHO} \
-      find "${first_path}" -mindepth 1 -maxdepth 1 -name "*" \
-      -exec $(gnu_mv) -t "${final_path}" {} \+
+    # First trash not empty. Move to final directory (which will be
+    # deleted on next rm_rotate). Then create a new first directory.
+    if ${first_path_is_deletable} && ${rotate_is_deletable}; then
+      ${DRY_ECHO} command mv -- "${first_path}" "${final_path}"
+      ${DRY_ECHO} command touch -- "${final_path}"
+      ${DRY_ECHO} command mkdir -p -- "${first_path}"
+    else
+      # SAVVY: Because ACL, cannot delete (or rename) ~/.Trash
+      # This `mkdir` unnecessary but just to be clear.
+      ${DRY_ECHO} command mkdir -p -- "${final_path}"
+      # BWARE: Note the mv'ing ".*" includes "." and "..", which
+      # generates warnings, e.g., on Linux:
+      #   $ command mv -- foo/* foo/.* bar
+      #   mv: cannot move 'foo/.' to 'bar/.': Device or resource busy
+      #   mv: 'foo/..' and 'bar/..' are the same file
+      # Or on macOS:
+      #   $ command mv -- foo/* foo/.* bar
+      #   mv: rename foo/. to bar/.: Invalid argument
+      #   mv: foo/.. and bar/.. are identical
+      # - If we limit this script to Bash, we could use dotglob, e.g.,
+      #     #!/usr/bin/env bash
+      #     ...
+      #     local old_dot_glob
+      #     old_dot_glob="$(shopt -p dotglob)"
+      #     shopt -s dotglob
+      #     command mv -- "${first_path}"/* "${final_path}"
+      #     eval "${old_dot_glob}"
+      # - Better yet, for POSIX compatibility, use `find`:
+      ${DRY_ECHO} \
+        find "${first_path}" -mindepth 1 -maxdepth 1 -name "*" \
+        -exec $(gnu_mv) -t "${final_path}" {} \+
+    fi
+
+    _sh_rm_safe_init_trash_dirs "${first_path}" "${final_path}"
   fi
 
-  _sh_rm_safe_init_trash_dirs "${first_path}" "${final_path}"
+  echo "$(fg_green)━━━━━━▶  Success No cap$(attr_reset)"
 }
 
 # ***
@@ -640,14 +654,21 @@ _sh_rm_rotate_must_prompt_user_okay_to_proceed() {
 
   local since_rotate=""
   if test -d "${final_path}"; then
-    local rotate_epoch=""
-    rotate_epoch="$($(_rmr_gnu_stat) -c %Y "${final_path}")"
-    since_rotate="$(printf "%d" "$(((latest_epoch - rotate_epoch) / 86400))")"
+    if ! _sh_rm_rotate_is_empty_trash "${final_path}"; then
+      local rotate_epoch=""
+      rotate_epoch="$($(_rmr_gnu_stat) -c %Y "${final_path}")"
+      since_rotate="$(printf "%d" "$(((latest_epoch - rotate_epoch) / 86400))")"
 
-    printf "%s\n" \
-      "$(fg_hotpink)┣┳▶ ALERT  This will permanently delete $(
-        attr_reset
-      )$(_rmr_print_path_stylized "${final_path}/") $(fg_hotpink)(last used ${since_rotate}d ago)$(attr_reset)"
+      printf "%s\n" \
+        "$(fg_hotpink)┣┳▶ ALERT  This will permanently delete $(
+          attr_reset
+        )$(_rmr_print_path_stylized "${final_path}/") $(fg_hotpink)(last used ${since_rotate}d ago)$(attr_reset)"
+    else
+      printf "%s\n" \
+        "$(fg_hotpink)┣┳▶ SAVVY   The final trash d. is empty $(
+          attr_reset
+        )$(_rmr_print_path_stylized "${final_path}/") $(fg_hotpink)(nothing to permanently delete right now)$(attr_reset)"
+    fi
   else
     printf "%s\n" \
       "$(fg_hotpink)┣┳▶ ALERT:  There is no final trash dir $(
@@ -749,7 +770,7 @@ _sh_rm_safe_created_locked_git_repo() {
     fi
 
     ${DRY_ECHO} command git init . -q
-    ${DRY_ECHO} command git commit --allow-empty -m "trash" -q
+    ${DRY_ECHO} command git commit --allow-empty -m "${RM_SAFE_TRASH_COMMIT_MSG:-trash}" -q
     cat <<EOF >"${pre_commit_hook}"
 #!/bin/sh
 echo "Error: This repository is locked. Commits are disabled."
@@ -757,6 +778,21 @@ exit 1
 EOF
     ${DRY_ECHO} chmod +x -- "${pre_commit_hook}"
   )
+}
+
+_sh_rm_rotate_is_empty_trash() {
+  local trash_dir="$1"
+
+  _rmr_trash_listing() { command ls -A -- "${trash_dir}"; }
+
+  ! [ -d "${trash_dir}" ] ||
+    [ -z "$(_rmr_trash_listing)" ] ||
+    (
+      [ "$(_rmr_trash_listing)" = ".git" ] &&
+        cd -- "${trash_dir}" &&
+        test "$(git log -1 --format='%B')" = "${RM_SAFE_TRASH_COMMIT_MSG:-trash}" &&
+        test "$(git rev-list --count --all)" = "1"
+    )
 }
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
