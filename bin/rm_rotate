@@ -219,6 +219,10 @@ _rm_rotate_enumerate_devices() {
     done
   else
     # @macOS, etc.
+    # FTREQ: How best to handle on macOS?
+    # - UCASE: DMG & AFS file systems.
+    #   - Currently, files are moved to home trash,
+    #     i.e., copied from one device to another.
     _rm_rotate_rotate_device_trash "/"
   fi
 }
