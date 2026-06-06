@@ -645,25 +645,25 @@ _sh_rm_rotate_must_prompt_user_okay_to_proceed() {
     since_rotate="$(printf "%d" "$(((latest_epoch - rotate_epoch) / 86400))")"
 
     printf "%s\n" \
-      "$(fg_hotpink)┣━▶ ALERT  This will permanently delete $(
+      "$(fg_hotpink)┣┳▶ ALERT  This will permanently delete $(
         attr_reset
       )$(_rmr_print_path_stylized "${final_path}") $(fg_hotpink)(last used ${since_rotate}d ago)$(attr_reset)"
   else
     printf "%s\n" \
-      "$(fg_hotpink)┣━▶ ALERT:  There is no final trash dir $(
+      "$(fg_hotpink)┣┳▶ ALERT:  There is no final trash dir $(
         attr_reset
       )$(_rmr_print_path_stylized "${final_path}") $(fg_hotpink)(nothing to permanently delete right now)$(attr_reset)"
   fi
 
   # "$(fg_hotpink)┣━━▶ And this trash will takes its place $(
   printf "%s\n%s\n%s" \
-    "$(fg_hotpink)┣━━▶ This will “freeze” the latest trash $(
+    "$(fg_hotpink)┣┻┳▶ This will “freeze” the latest trash $(
       attr_reset
     )$(_rmr_print_path_stylized "${first_path}") $(fg_hotpink)(by renaming it to ${first_trash}/)$(attr_reset)" \
-    "$(fg_hotpink)┣━━━▶ And create a new “first” trash dir $(
+    "$(fg_hotpink)┣┳┻┳▶ And create a new “first” trash dir $(
       attr_reset
     )$(_rmr_print_path_stylized "${first_path}") $(fg_hotpink)(that you can start using immediately)$(attr_reset)" \
-    "$(fg_hotpink)┗━━━━▶ Okay to proceed? [y/N]$(attr_reset) "
+    "$(fg_hotpink)┗┻━┻━▶ Okay to proceed? [y/N]$(attr_reset) "
 
   local yes_or_no=""
   read yes_or_no
