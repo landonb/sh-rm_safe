@@ -165,13 +165,14 @@ source_dep() {
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
 
 _rm_rotate_print_usage() {
-  echo "USAGE: rm_rotate [-h|--help] [-r|--report]"
+  echo "USAGE: rm_rotate [-h|--help] [-r|--report] [-c|--concise]"
 
   exit_0
 }
 
 _rm_rotate_parse_args() {
   do_report=false
+  only_report_active=false
 
   while [ $# -gt 0 ]; do
     case $1 in
@@ -182,6 +183,9 @@ _rm_rotate_parse_args() {
       ;;
     -r | --report)
       do_report=true
+      ;;
+    -c | --concise)
+      only_report_active=true
       ;;
     -* | --*)
       >&2 echo "ERROR: Unrecognized argument: “$1”"
@@ -249,17 +253,19 @@ _rm_rotate_rotate_device_trash() {
   }
 
   if [ ! -d "${final_path}" ]; then
-    # There's no "final" trash (i.e., the contemporary /<dev>/.trash is absent)
-    # on this device, which means rm_safe is "disabled" on this device
-    # (though we alert if the ${first_trash} exists (e.g., /<dev>/.trash0)).
-    # CRUMB: #_new_item
-    local leader=""
-    local action="Skipping"
-    ! ${do_report} || action="Disabled"
-    echo "${leader} $(fg_lightmagenta)${action}$(attr_reset): Nothing at: $(
-      _rmr_print_path_stylized "${device_path}" "${final_trash}"
-    )"
-    _rm_rotate_alert_tailings
+    if ! ${only_report_active}; then
+      # There's no "final" trash (i.e., the contemporary /<dev>/.trash is absent)
+      # on this device, which means rm_safe is "disabled" on this device
+      # (though we alert if the ${first_trash} exists (e.g., /<dev>/.trash0)).
+      # CRUMB: #_new_item
+      local leader=""
+      local action="Skipping"
+      ! ${do_report} || action="Disabled"
+      echo "${leader} $(fg_lightmagenta)${action}$(attr_reset): Nothing at: $(
+        _rmr_print_path_stylized "${device_path}" "${final_trash}"
+      )"
+      _rm_rotate_alert_tailings
+    fi
 
     return 0
   elif [ -h "${final_path}" ]; then
@@ -683,6 +689,7 @@ main() {
   _rm_rotate_source_deps
 
   local do_report=false
+  local only_report_active=false
   _rm_rotate_parse_args "$@"
 
   rm_rotate "$@"
