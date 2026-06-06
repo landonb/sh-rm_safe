@@ -538,13 +538,18 @@ _rm_rotate_print_trash_stats_stats() {
     fi
   fi
 
-  printf "%s %s %s / %s %s %s %s (%s ago) / %s %7d / %s %sM%s\n" \
+  # Refer: %s mapping:
+  #
+  #      Pipe  Date    Span  Date            Items      Mbs
+  #        |"Cr."|  "Te" |"Use"| Since     "It"  |  "Mb" |reset
+  #        |  |  |    |  |  |  |   |         |   |   |   |  |
+  printf "%s %s %s / %s %s %s %s (%s ago) / %s %4d / %s %sM%s\n" \
     "  ${pipec} ┗━━" \
-    "$(fg_lightgreen)Created:$(fg_lightyellow)" \
+    "$(fg_lightgreen)Creation:$(fg_lightyellow)" \
     "${create_date}" \
     "$(fg_lightgreen)Term:$(fg_lightyellow)" \
     "${lifespan}" \
-    "$(fg_lightgreen)Last Used:$(fg_lightyellow)" \
+    "$(fg_lightgreen)Last Use:$(fg_lightyellow)" \
     "${rotate_date}" \
     "${since_rotate}" \
     "$(fg_lightgreen)Items:$(fg_lightyellow)" \
