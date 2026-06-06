@@ -165,7 +165,7 @@ source_dep() {
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
 
 _rm_rotate_print_usage() {
-  echo "USAGE: rm_rotate [-h|--help] [-r|--report] [-c|--concise]"
+  echo "USAGE: rm_rotate [-h|--help] [-r|--report] [-c|--concise] [--] [<DEVICE-OR-TRASH-PATH>]..."
 
   exit_0
 }
@@ -173,6 +173,10 @@ _rm_rotate_print_usage() {
 _rm_rotate_parse_args() {
   do_report=false
   only_report_active=false
+  # This script currently POSIX-compliant, so not good array support
+  # outside $@. Otherwise we might assemble devices list. But instead
+  # we'll process args twice — here, and later to process device paths.
+  has_paths=false
 
   while [ $# -gt 0 ]; do
     case $1 in
@@ -187,15 +191,49 @@ _rm_rotate_parse_args() {
     -c | --concise)
       only_report_active=true
       ;;
+    --)
+      break
+      ;;
     -* | --*)
       >&2 echo "ERROR: Unrecognized argument: “$1”"
 
       exit_1
       ;;
+    *)
+      _rm_rotate_verify_user_path "$1"
+      ;;
     esac
 
     shift
   done
+
+  if [ $# -gt 0 ]; then
+    _rm_rotate_verify_user_path "$1"
+    shift
+  fi
+}
+
+_rm_rotate_verify_user_path() {
+  local device_path="$1"
+
+  has_paths=true
+
+  # Assumes user specifies base dir, and not .trash[0] dir itself.
+  if ! test -d "${device_path}"; then
+    >&2 echo "ERROR: Not a directory: ${device_path}"
+
+    exit_1
+  fi
+
+  local bname
+  bname="$(basename -- "${device_path}")"
+
+  if [ "${bname}" = "${RM_SAFE_FIRST_TRASH}" ] ||
+    [ "${bname}" = "${RM_SAFE_FINAL_TRASH}" ]; then
+    >&2 echo "ERROR: Please specify device root, not trash dir itself: ${device_path}"
+
+    exit_1
+  fi
 }
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
@@ -204,11 +242,13 @@ rm_rotate() {
   local first_trash="${RM_SAFE_FIRST_TRASH}"
   local final_trash="${RM_SAFE_FINAL_TRASH}"
 
-  _rm_rotate_enumerate_devices
+  _rm_rotate_enumerate_devices "$@"
 }
 
 _rm_rotate_enumerate_devices() {
-  if command -v findmnt >/dev/null; then
+  if ${has_paths}; then
+    _rm_rotate_device_list "$@"
+  elif command -v findmnt >/dev/null; then
     local device_path=""
     for device_path in $(
       findmnt -l -t fuse.gocryptfs,fuse.encfs,ext4 -o TARGET --noheadings |
@@ -225,6 +265,39 @@ _rm_rotate_enumerate_devices() {
     #     i.e., copied from one device to another.
     _rm_rotate_rotate_device_trash "/"
   fi
+}
+
+# ***
+
+_rm_rotate_device_list() {
+  local device_path=""
+
+  while [ $# -gt 0 ]; do
+    case $1 in
+    -h | --help | \
+      -r | --report | \
+      -c | --concise) ;;
+    --)
+      break
+      ;;
+    *)
+      _rm_rotate_specified_device_trash "$1"
+      ;;
+    esac
+
+    shift
+  done
+
+  while [ $# -gt 0 ]; do
+    _rm_rotate_specified_device_trash "$1"
+    shift
+  done
+}
+
+_rm_rotate_specified_device_trash() {
+  local device_path="$1"
+
+  _rm_rotate_rotate_device_trash "${device_path}"
 }
 
 # ***
@@ -702,6 +775,7 @@ main() {
 
   local do_report=false
   local only_report_active=false
+  local has_paths=false
   _rm_rotate_parse_args "$@"
 
   rm_rotate "$@"
