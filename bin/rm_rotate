@@ -577,8 +577,23 @@ _sh_rm_rotate_must_prompt_user_okay_to_proceed() {
   local first_path="$1"
   local final_path="$2"
 
+  local latest_epoch
+  local rotate_epoch
+  local since_rotate
+  latest_epoch="$(date "+%s")"
+  rotate_epoch="$($(_rmr_gnu_stat) -c %Y "${final_path}")"
+  since_rotate="$(printf "%d" "$(((latest_epoch - rotate_epoch) / 86400))")"
+  # 
   local yes_or_no=""
-  printf %s "Empty ‘${final_path}’, and replace with trash from ‘${first_path}’? [y/n] "
+  printf "%s\n%s\n%s\n%s" \
+    "$(fg_hotpink)$(attr_reset)" \
+    "$(fg_hotpink)┣━▶ ALERT  This will permanently delete $(
+      attr_reset
+    )$(_rmr_print_path_stylized "${final_path}")$(fg_hotpink) (last used ${since_rotate}d ago)$(attr_reset)" \
+    "$(fg_hotpink)┣━━▶ And this trash will takes its place $(
+      attr_reset
+    )$(_rmr_print_path_stylized "${first_path}")$(fg_hotpink)$(attr_reset) " \
+    "$(fg_hotpink)┗━━━▶ Okay to proceed? [y/N]$(attr_reset) "
   read yes_or_no
 
   # Bash-specific: [ "${yes_or_no^^}" = "Y" ]. POSIX-compatible:
@@ -586,8 +601,11 @@ _sh_rm_rotate_must_prompt_user_okay_to_proceed() {
     if [ -z "${yes_or_no}" ]; then
       echo
     fi
+    local leader=""
     # REFER: https://en.wikipedia.org/wiki/Sorry_Ma,_Forgot_to_Take_Out_the_Trash
-    echo "SKIPD: Sorry Ma, left trash ‘${first_path}’"
+    printf "%s%s\n" \
+      " $(fg_lavender)${leader} STOPD: Sorry Ma, Forget To Take Out The Trash $(attr_reset)" \
+      "$(_rmr_print_path_stylized "${first_path}")"
 
     return 1
   fi
