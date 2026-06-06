@@ -715,9 +715,9 @@ _sh_rm_safe_init_trash_dirs() {
 _sh_rm_safe_ensure_trash_dir_with_proper_permissions() {
   local trash_dir="$1"
 
-  command mkdir -p -- "${trash_dir}"
+  ${DRY_ECHO} command mkdir -p -- "${trash_dir}"
 
-  command chmod 700 -- "${trash_dir}"
+  ${DRY_ECHO} command chmod 700 -- "${trash_dir}"
 
   if os_is_macos; then
     # Ensure ~/.Trash0 permissions like ~/.Trash
