@@ -130,6 +130,9 @@ _rm_rotate_set_environs() {
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
 
+# DRY_ECHO="echo" rm_rotate ~/.kit/landonb -r
+# DRY_ECHO="echo" rm_rotate ~/.kit/landonb
+
 DRY_ECHO=""
 # Uncomment for trace with rotate:
 #  DRY_ECHO="echo"
@@ -329,18 +332,20 @@ _rm_rotate_rotate_device_trash() {
     fi
   }
 
-  if [ ! -d "${final_path}" ]; then
+  if [ -f "${final_path}" ]; then
+    # The "final" trash (/<dev>/.trash) is a regular file, which
+    # means rm_safe is "disabled" on this device (though we alert
+    # if the ${first_trash} exists, e.g., /<dev>/.trash0).
     if ! ${only_report_active}; then
-      # There's no "final" trash (i.e., the contemporary /<dev>/.trash is absent)
-      # on this device, which means rm_safe is "disabled" on this device
-      # (though we alert if the ${first_trash} exists (e.g., /<dev>/.trash0)).
       # CRUMB: #_new_item
       local leader=""
-      local action="Skipping"
-      ! ${do_report} || action="Disabled"
+      local action="Skipping inactivated"
+      ! ${do_report} || action="Disabled trash"
+      local ftype="Regular file"
+      ! ${do_report} || ftype="Reg. file"
       echo "${leader} $(fg_lightmagenta)${action}:$(
         attr_reset
-      ) $(fg_lightgray)Nothing at:$(attr_reset) $(
+      ) $(fg_lightgray)${ftype}:$(attr_reset) $(
         _rmr_print_path_stylized "${device_path}" "${final_trash}"
       )"
       _rm_rotate_alert_tailings
@@ -359,6 +364,22 @@ _rm_rotate_rotate_device_trash() {
     echo "SKIPD: Disregarding symlink ‘${final_path}’"
     echo "- With final destination at ‘$(realpath -- "${final_path}")’"
     _rm_rotate_alert_tailings
+
+    return 0
+  elif ! [ -d "${final_path}" ] && ! [ -d "${first_path}" ]; then
+    # There's no either trash on this device.
+    if ! ${only_report_active}; then
+      # CRUMB: #_new_item
+      local leader=""
+      local action="Skipping “empty” trash"
+      ! ${do_report} || action="“Empty” trash"
+      echo "${leader} $(fg_lightmagenta)${action}:$(
+        attr_reset
+      ) $(fg_lightgray)Nothing at:$(attr_reset) $(
+        _rmr_print_path_stylized "${device_path}" "${final_trash}"
+      ) or $(_rmr_print_path_stylized "../${first_trash}")"
+      _rm_rotate_alert_tailings
+    fi
 
     return 0
   fi
@@ -485,9 +506,18 @@ _rm_rotate_print_trash_stats_path() {
       fg_lightorange
     )<dev>/$(attr_reset)$(fg_lightblue)trash$(attr_reset)"
   fi
+
   local pipec="┗━"
+  local absent=""
   ! ${is_first_path} || pipec="┣━"
-  echo "  ${pipec}┳━ $(_rmr_print_path_stylized "${trash_path}")"
+  if test -d "${trash_path}"; then
+    pipec="${pipec}┳━"
+  else
+    pipec="${pipec}━━"
+    absent=" $(fg_lightgreen)(absent)$(attr_reset)"
+  fi
+
+  echo "  ${pipec} $(_rmr_print_path_stylized "${trash_path}")${absent}"
 }
 
 _rm_rotate_print_trash_stats_stats() {
@@ -602,23 +632,40 @@ _sh_rm_rotate_must_prompt_user_okay_to_proceed() {
   local first_path="$1"
   local final_path="$2"
 
-  local latest_epoch
-  local rotate_epoch
-  local since_rotate
+  local latest_epoch=""
   latest_epoch="$(date "+%s")"
-  rotate_epoch="$($(_rmr_gnu_stat) -c %Y "${final_path}")"
-  since_rotate="$(printf "%d" "$(((latest_epoch - rotate_epoch) / 86400))")"
+
   # 
+  echo "$(fg_hotpink)$(attr_reset)"
+
+  local since_rotate=""
+  if test -d "${final_path}"; then
+    local rotate_epoch=""
+    rotate_epoch="$($(_rmr_gnu_stat) -c %Y "${final_path}")"
+    since_rotate="$(printf "%d" "$(((latest_epoch - rotate_epoch) / 86400))")"
+
+    printf "%s\n" \
+      "$(fg_hotpink)┣━▶ ALERT  This will permanently delete $(
+        attr_reset
+      )$(_rmr_print_path_stylized "${final_path}") $(fg_hotpink)(last used ${since_rotate}d ago)$(attr_reset)"
+  else
+    printf "%s\n" \
+      "$(fg_hotpink)┣━▶ ALERT:  There is no final trash dir $(
+        attr_reset
+      )$(_rmr_print_path_stylized "${final_path}") $(fg_hotpink)(nothing to permanently delete right now)$(attr_reset)"
+  fi
+
+  # "$(fg_hotpink)┣━━▶ And this trash will takes its place $(
+  printf "%s\n%s\n%s" \
+    "$(fg_hotpink)┣━━▶ This will “freeze” the latest trash $(
+      attr_reset
+    )$(_rmr_print_path_stylized "${first_path}") $(fg_hotpink)(by renaming it to ${first_trash}/)$(attr_reset)" \
+    "$(fg_hotpink)┣━━━▶ And create a new “first” trash dir $(
+      attr_reset
+    )$(_rmr_print_path_stylized "${first_path}") $(fg_hotpink)(that you can start using immediately)$(attr_reset)" \
+    "$(fg_hotpink)┗━━━━▶ Okay to proceed? [y/N]$(attr_reset) "
+
   local yes_or_no=""
-  printf "%s\n%s\n%s\n%s" \
-    "$(fg_hotpink)$(attr_reset)" \
-    "$(fg_hotpink)┣━▶ ALERT  This will permanently delete $(
-      attr_reset
-    )$(_rmr_print_path_stylized "${final_path}")$(fg_hotpink) (last used ${since_rotate}d ago)$(attr_reset)" \
-    "$(fg_hotpink)┣━━▶ And this trash will takes its place $(
-      attr_reset
-    )$(_rmr_print_path_stylized "${first_path}")$(fg_hotpink)$(attr_reset) " \
-    "$(fg_hotpink)┗━━━▶ Okay to proceed? [y/N]$(attr_reset) "
   read yes_or_no
 
   # Bash-specific: [ "${yes_or_no^^}" = "Y" ]. POSIX-compatible:
