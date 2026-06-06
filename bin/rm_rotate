@@ -455,13 +455,18 @@ _rm_rotate_print_trash_stats() {
   ! ${is_first_path} || pipec="┃"
 
   # SYNON: Length of time, Term, Lifespan, Lifetime, Stretch, Duration, Aeon, Days, Span, Lasting.
-  printf "%s Created: %s / Term: %s Last Used: %s (%s ago) / Items: %7d / Mbytes: %sM\n" \
+  printf "%s %s %s / %s %s %s %s (%s ago) / %s %7d / %s %sM\n" \
     "  ${pipec} ┗━━" \
+    "Created:" \
     "${create_date}" \
+    "Term:" \
     "${lifespan}" \
+    "Last Used:" \
     "${rotate_date}" \
     "${since_rotate}" \
+    "Items:" \
     "$(find "${trash_path}" -mindepth 1 -maxdepth 1 | wc -l)" \
+    "Mbytes:" \
     "$(_rmr_stats_print_size_mb "${trash_path}")"
 }
 
