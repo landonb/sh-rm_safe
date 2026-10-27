@@ -799,6 +799,8 @@ _sh_rm_safe_process_items() {
 #   ARG_VERBOSE
 #   N_PATH_ARGS
 
+# INERT/2026-10-26: FTREQ: Convert to getopt (though curr. works, so why).
+
 parse_args() {
   ARG_FORCE=false
   ARG_SAFE=false
