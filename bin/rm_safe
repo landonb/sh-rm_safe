@@ -873,6 +873,10 @@ parse_args() {
         ;;
       --version)
         # "output version information and exit"
+        # FTREQ: Add shell script vers mgmt to git-bump-version-tag to maintain this.
+        RM_SAFE_VERSION_FLOOR="1.4.0" # ₐₜ ₗₑₐₛₜ # 𝒂𝒕 𝒍𝒆𝒂𝒔𝒕
+        echo "${_rm_safe__this_filename} (DXY coreutils) ᴀᴛ ʟᴇᴀsᴛ ${RM_SAFE_VERSION_FLOOR}"
+
         command rm --version
 
         exit_0
