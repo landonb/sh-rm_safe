@@ -934,6 +934,5 @@ if [ "$(basename -- "$(realpath -- "$0")")" = "${PROG_NAME}" ]; then
 else
   # Being sourced.
   export -f rm_rotate
+  unset -f main
 fi
-
-unset -f main
