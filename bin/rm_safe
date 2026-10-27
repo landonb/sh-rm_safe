@@ -14,10 +14,10 @@ RM_SAFE_TRASH_HOME="${RM_SAFE_TRASH_HOME:-${HOME}}"
 set_environs() {
   if ! os_is_macos; then
     RM_SAFE_FIRST_TRASH="${RM_SAFE_FIRST_TRASH:-.trash0}"
-    # RM_SAFE_FINAL_TRASH="${RM_SAFE_FINAL_TRASH:-.trash}"
+    RM_SAFE_FINAL_TRASH="${RM_SAFE_FINAL_TRASH:-.trash}"
   else
     RM_SAFE_FIRST_TRASH="${RM_SAFE_FIRST_TRASH:-.Trash0}"
-    # RM_SAFE_FINAL_TRASH="${RM_SAFE_FINAL_TRASH:-.Trash}"
+    RM_SAFE_FINAL_TRASH="${RM_SAFE_FINAL_TRASH:-.Trash}"
   fi
 }
 
@@ -802,8 +802,10 @@ _sh_rm_safe_process_items() {
 # INERT/2026-10-26: FTREQ: Convert to getopt (though curr. works, so why).
 
 parse_args() {
+  ARG_FIRST_PATH=""
   ARG_FORCE=false
   ARG_SAFE=false
+  ARG_TRASH_PRINT=""
   ARG_VERBOSE=""
   N_PATH_ARGS=0
 
@@ -812,6 +814,7 @@ parse_args() {
   for arg in "$@"; do
     if ${end_of_options}; then
       let 'N_PATH_ARGS +=1 '
+      ARG_FINAL_PATH="${arg}"
     else
       # Arg list and "help" snippets from 'rm (GNU coreutils) 8.32'.
       case "${arg}" in
@@ -865,6 +868,12 @@ parse_args() {
         # its wordy menu prompt when there's do device trash
         ARG_VERBOSE="-v"
         ;;
+      --first-trash)
+        ARG_TRASH_PRINT="${RM_SAFE_FIRST_TRASH}"
+        ;;
+      --final-trash)
+        ARG_TRASH_PRINT="${RM_SAFE_FINAL_TRASH}"
+        ;;
       --help)
         # "display this help and exit"
         print_help
@@ -911,6 +920,7 @@ parse_args() {
         ;;
       *)
         let 'N_PATH_ARGS +=1 '
+        ARG_FINAL_PATH="${arg}"
         ;;
       esac
     fi
@@ -1016,13 +1026,25 @@ EOF
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
 
 rm_safe() {
+  local ARG_FINAL_PATH=""
   local ARG_FORCE=false
   local ARG_SAFE=false
+  local ARG_TRASH_PRINT=""
   local ARG_VERBOSE=""
   local N_PATH_ARGS=0
 
   # Exits on --help, --version, or unknown args.
   parse_args "$@"
+
+  # ***
+
+  # KLUGE: Yeah, feels klunky. (Author wants this in DepoXy, for
+  # `cdt` convenience, which pushd's to the cwd device trash dir.)
+  if [ -n "${ARG_TRASH_PRINT}" ]; then
+    print_trash_dir_for_trash "${ARG_TRASH_PRINT}" "${ARG_FINAL_PATH}"
+
+    return 0
+  fi
 
   # ***
 
@@ -1188,7 +1210,8 @@ set_trash_fs_mount() {
   local fs_of_item="$2"
   local item_path="$3"
 
-  if ${TRASH_FS_MOUNT_LOCKED}; then
+  if ${TRASH_FS_MOUNT_LOCKED:-false}; then
+
     return
   fi
 
@@ -1207,6 +1230,25 @@ set_trash_fs_mount() {
   fi
 
   _trace "TRASH_FS_MOUNT=${TRASH_FS_MOUNT}" # E.g., "/dev/sdb1"
+}
+
+print_trash_dir_for_trash() {
+  local which_trash="$1"
+  local item_path="${2:-.}"
+
+  # Prints "/home" for main trash...
+  #   local TRASH_FS_MOUNT
+  #   TRASH_FS_MOUNT=$(_sh_rm_safe_device_filepath_for_path "${item_path}")
+
+  local fs_of_main_trash
+  fs_of_main_trash="$(print_fs_of_main_trash)" || return 1
+
+  local fs_of_item
+  fs_of_item="$(print_fs_of_item "${item_path}")" || return 1
+
+  set_trash_fs_mount "${fs_of_main_trash}" "${fs_of_item}" "${item_path}"
+
+  echo "${TRASH_FS_MOUNT}/${which_trash}"
 }
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
