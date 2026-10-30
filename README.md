@@ -141,8 +141,21 @@ The [`trash`][hasseg-trash] command-line program for macOS (available [from Home
 
 [hasseg-trash]: https://hasseg.org/trash/
 
-On Debian distros, the `trash` command from the [`trash-cli`][trash-cli]
-package provides an interface to the same trash that your file manager uses
+On Linux distros that implement the [Desktop Trash Can Specification][trash-can-spec],
+you can use the built-in `gio trash` command from the [`gio` command][gio-cli], e.g.:
+
+  ```shell
+  $ gio trash my-file
+  ```
+
+[gio-cli]: https://man.archlinux.org/man/gio.1
+[gio-api]: https://docs.gtk.org/gio/
+[free-desktop]: https://www.freedesktop.org/
+[trash-can-spec]: https://www.freedesktop.org/wiki/Specifications/trash-spec/
+
+Similarly, the `trash` command from [`trash-cli`][trash-cli] is
+another command line interface to [FreeDesktop.org][free-desktop]
+Trash, the same trash that your file manager uses
 (generally found at `${XDG_DATA_HOME:-~/.local/share}/Trash`).
 
 [trash-cli]: https://github.com/andreafrancia/trash-cli
